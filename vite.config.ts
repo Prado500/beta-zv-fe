@@ -1,4 +1,6 @@
-import { defineConfig } from 'vite'
+// `vitest/config` reexporta el `defineConfig` de Vite y le añade la clave
+// `test`; con el de 'vite' a secas, TypeScript rechazaría la configuración.
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
@@ -23,5 +25,27 @@ export default defineConfig({
         changeOrigin: false,
       },
     },
+  },
+
+  /*
+   * Pruebas con Vitest sobre jsdom.
+   *
+   * `jsdom` porque lo que se prueba es comportamiento de usuario —escribir,
+   * pulsar, ver un borde rojo—, y eso necesita un DOM de verdad. `globals`
+   * habilita el `afterEach` que Testing Library usa para limpiar solo entre
+   * casos; sin él, cada prueba heredaría los modales de la anterior.
+   */
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./tests/setup.ts'],
+    include: ['tests/**/*.test.{ts,tsx}'],
+    css: false,
+    // Cada caso declara lo que su API mockeada debe responder; lo que se limpia
+    // entre pruebas es el historial de llamadas, que es lo que se afirma.
+    clearMocks: true,
+    // Escribir un formulario entero tecla a tecla con validación en vivo pasa de
+    // los 5 s por defecto en máquinas lentas.
+    testTimeout: 15000,
   },
 })
