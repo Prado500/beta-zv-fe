@@ -1,0 +1,378 @@
+/* 1. Directiva principal de Tailwind y configuración */
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+/* 2. Clases personalizadas */
+.ambient-shadow {
+  box-shadow: 0 4px 20px rgba(198, 40, 40, 0.05);
+}
+.premium-border {
+  border: 1px solid #D4AF37;
+}
+.text-gold {
+  color: #D4AF37;
+}
+.heart-line::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: #D4AF37;
+  z-index: 0;
+}
+
+/* 3. Utilidades personalizadas */
+@layer utilities {
+  .ambient-shadow-lg {
+    box-shadow: 0 20px 40px -8px rgba(185, 5, 56, 0.08);
+  }
+  .text-gradient {
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-image: linear-gradient(135deg, #b90538, #dc2c4f);
+  }
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #e3bdbf transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #e3bdbf;
+    border-radius: 9999px;
+  }
+}
+
+/* 4. Ajuste global para Material Symbols */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* 5. Animaciones */
+@keyframes bounce-short {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+.animate-bounce-short {
+  animation: bounce-short 0.8s infinite alternate;
+}
+/* 6. Decoración romántica del módulo promo */
+@layer utilities {
+  /* Hairline dorado que se desvanece en los extremos */
+  .rule-gold {
+    background-image: linear-gradient(
+      to right,
+      transparent,
+      rgba(212, 175, 55, 0.55),
+      transparent
+    );
+  }
+  .rule-rose {
+    background-image: linear-gradient(
+      to right,
+      transparent,
+      rgba(185, 5, 56, 0.35),
+      transparent
+    );
+  }
+  /* Papel tramado muy tenue para secciones claras */
+  .paper-weave {
+    background-image: repeating-linear-gradient(
+      45deg,
+      rgba(185, 5, 56, 0.035) 0px,
+      rgba(185, 5, 56, 0.035) 1px,
+      transparent 1px,
+      transparent 7px
+    );
+  }
+  /* Comilla tipográfica decorativa de las citas */
+  .quote-mark::before {
+    content: '\201C';
+    position: absolute;
+    top: -0.35em;
+    left: 0.35rem;
+    font-family: 'Playfair Display', serif;
+    font-size: 4.5rem;
+    line-height: 1;
+    color: currentColor;
+    opacity: 0.14;
+    pointer-events: none;
+  }
+}
+
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+.animate-float-soft {
+  animation: float-soft 7s ease-in-out infinite;
+}
+
+@keyframes drift-slow {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+.animate-drift-slow {
+  animation: drift-slow 60s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-soft,
+  .animate-drift-slow {
+    animation: none;
+  }
+}
+
+/* 7. Papel, stickers y bordes festoneados del promo */
+@layer utilities {
+  /* Hoja de papel: base crema con grano y viñeta cálida */
+  .paper-sheet {
+    background-color: #f6efe9;
+    background-image:
+      radial-gradient(
+        120% 80% at 50% 0%,
+        rgba(255, 255, 255, 0.85) 0%,
+        rgba(255, 255, 255, 0) 55%
+      ),
+      radial-gradient(
+        90% 60% at 100% 100%,
+        rgba(140, 17, 40, 0.05) 0%,
+        rgba(140, 17, 40, 0) 60%
+      ),
+      radial-gradient(
+        90% 60% at 0% 30%,
+        rgba(212, 175, 55, 0.05) 0%,
+        rgba(212, 175, 55, 0) 60%
+      );
+  }
+
+  /* Grano fino, se superpone al papel */
+  .paper-grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.5;
+    background-image: radial-gradient(rgba(94, 10, 27, 0.07) 0.5px, transparent 0.5px);
+    background-size: 13px 13px;
+  }
+
+  /* Recuadro de sticker: contorno punteado con esquinas muy redondeadas */
+  .sticker-frame {
+    border: 1.5px dashed rgba(140, 17, 40, 0.32);
+    border-radius: 1.5rem;
+  }
+
+  /* Viñeta cálida en los bordes de la página */
+  .paper-vignette::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      130% 90% at 50% 45%,
+      transparent 55%,
+      rgba(140, 17, 40, 0.06) 100%
+    );
+  }
+
+  /* Carrusel sin barra de desplazamiento visible */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Subrayado a mano alzada bajo una palabra */
+  .hand-underline {
+    background-image: linear-gradient(
+      to right,
+      rgba(140, 17, 40, 0.28),
+      rgba(140, 17, 40, 0.28)
+    );
+    background-repeat: no-repeat;
+    background-size: 100% 0.28em;
+    background-position: 0 88%;
+  }
+}
+
+/* 8. Entrada y salida del modal de compartir */
+@keyframes modal-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modal-backdrop-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes modal-panel-in {
+  from { opacity: 0; transform: translateY(22px) scale(0.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes modal-panel-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(12px) scale(0.97); }
+}
+@keyframes modal-item-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-backdrop {
+  animation: modal-backdrop-in 220ms ease forwards;
+}
+.modal-backdrop.is-closing {
+  animation: modal-backdrop-out 180ms ease forwards;
+}
+
+/* Salida hacia atrás: la exponencial de entrada se siente lenta al cerrar */
+.modal-panel {
+  animation: modal-panel-in 340ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.modal-panel.is-closing {
+  animation: modal-panel-out 180ms ease-in forwards;
+}
+
+/* `backwards` mantiene el elemento oculto durante el retardo */
+.modal-stagger-1 {
+  animation: modal-item-in 420ms cubic-bezier(0.16, 1, 0.3, 1) 90ms backwards;
+}
+.modal-stagger-2 {
+  animation: modal-item-in 460ms cubic-bezier(0.16, 1, 0.3, 1) 180ms backwards;
+}
+.is-closing .modal-stagger-1,
+.is-closing .modal-stagger-2 {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop,
+  .modal-backdrop.is-closing,
+  .modal-panel,
+  .modal-panel.is-closing,
+  .modal-stagger-1,
+  .modal-stagger-2 {
+    animation: none;
+  }
+}
+
+/* 9. Estallido de flores del promo (misma curva que la carta exportada) */
+@keyframes bloom-particle {
+  0% {
+    transform: translate3d(0, 0, 0) scale(0) rotate(calc(var(--rot) - 20deg));
+    opacity: 0;
+  }
+  25% {
+    transform: translate3d(var(--tx), var(--ty), 0) scale(var(--scale)) rotate(var(--rot));
+    opacity: 1;
+  }
+  65% {
+    transform: translate3d(var(--tx), var(--ty), 0) scale(var(--scale)) rotate(var(--rot));
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(calc(var(--tx) * 1.05), calc(var(--ty) * 1.05), 0)
+      scale(calc(var(--scale) * 1.05)) rotate(calc(var(--rot) + 10deg));
+    opacity: 0;
+  }
+}
+.bloom-particle {
+  object-fit: contain;
+  opacity: 0;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+  animation: bloom-particle 2.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/*
+ * Con "reducir movimiento" activo no se apaga del todo: esta animación no es
+ * decoración, es la demostración del producto. Se quita el desplazamiento —que
+ * es lo que molesta a quien activa ese ajuste— y queda un fundido en el sitio
+ * final de cada flor.
+ */
+@keyframes bloom-particle-fade {
+  0% {
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.95;
+  }
+  68% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bloom-particle {
+    transform: translate3d(var(--tx), var(--ty), 0) scale(var(--scale)) rotate(var(--rot));
+    animation: bloom-particle-fade 2.8s ease-in-out forwards;
+  }
+}
+
+/* 10. Vista previa del teléfono
+ *
+ * La carta se maqueta siempre a 320×640 y el conjunto se escala. Encoger el
+ * marco directamente no sirve: la polaroid, los márgenes y el cuerpo de texto
+ * son medidas fijas, así que a menos ancho el texto acaba en dos palabras por
+ * línea. Escalando, las proporciones internas quedan intactas.
+ *
+ * `--phone-scale` la calcula el componente midiendo el hueco real que queda
+ * bajo el rótulo; unos escalones por media query nunca aciertan en todas las
+ * ventanas y dejaban espacio muerto.
+ */
+.phone-shell {
+  --phone-scale: 1;
+  width: calc(320px * var(--phone-scale));
+  height: calc(640px * var(--phone-scale));
+  flex-shrink: 0;
+}
+.phone-shell__frame {
+  width: 320px;
+  height: 640px;
+  transform: scale(var(--phone-scale));
+  transform-origin: top left;
+}
+
+/* 11. Cinta de auto-desplazamiento
+ *
+ * La lista se dibuja dos veces y la fila se corre un -50%: al reiniciarse, el
+ * contenido en esa posición es idéntico y el bucle no tiene costura.
+ *
+ * A diferencia del resto de animaciones de la página, esta NO se apaga con
+ * "reducir movimiento": es una función pedida expresamente, no decoración, y
+ * esa guarda era justo lo que la dejaba quieta.
+ */
+@keyframes marquee-row {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-row {
+  animation: marquee-row var(--marquee-duration, 40s) linear infinite;
+  will-change: transform;
+}
+
