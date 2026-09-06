@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ScarcityBar } from '../components/layout/ScarcityBar';
 import { Header } from '../components/layout/Header';
 import { Footer } from '../components/layout/Footer';
@@ -8,8 +9,11 @@ import { LivePreview } from '../components/sections/LivePreview';
 import { SocialProof } from '../components/sections/SocialProof';
 import { Features } from '../components/sections/Features';
 import { Pricing } from '../components/sections/Pricing';
+import { PurchaseModal } from '../components/checkout/PurchaseModal';
 
 export default function LandingPage() {
+  const [buying, setBuying] = useState(false);
+
   return (
     <div className="relative paper-sheet paper-vignette text-on-background font-body-md antialiased selection:bg-primary-container/30 selection:text-primary">
       {/* Corazones regados sobre toda la hoja, detrás del contenido */}
@@ -27,10 +31,12 @@ export default function LandingPage() {
         <LivePreview />
         <SocialProof />
         <Features />
-        <Pricing />
+        <Pricing onBuy={() => setBuying(true)} />
       </main>
 
       <Footer />
+
+      <PurchaseModal open={buying} onClose={() => setBuying(false)} />
     </div>
   );
 }

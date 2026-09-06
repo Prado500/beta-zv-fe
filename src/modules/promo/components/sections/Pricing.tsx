@@ -1,7 +1,12 @@
 import React from 'react';
 import { Ornament, CornerFlourish, HeartConfetti, Bow, PhotoFrame } from '../../../../components/decor';
 
-export const Pricing: React.FC = () => {
+interface PricingProps {
+  /** Abre el flujo de compra. La landing es quien monta el modal. */
+  onBuy: () => void;
+}
+
+export const Pricing: React.FC<PricingProps> = ({ onBuy }) => {
   return (
     <section className="py-14 md:py-section-gap bg-paper-deep/60 relative overflow-hidden paper-grain" id="pricing">
       <div className="absolute top-0 inset-x-0 h-px rule-gold"></div>
@@ -85,7 +90,7 @@ export const Pricing: React.FC = () => {
             </ul>
             
             {/* Botón brillante original */}
-            <button className="w-full relative group">
+            <button type="button" onClick={onBuy} className="w-full relative group cursor-pointer">
               <div className="absolute -inset-1 bg-linear-to-r from-primary to-tertiary rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
               <div className="relative bg-wine hover:bg-primary text-white font-label-md text-lg py-4 px-8 rounded-full transition-all shadow-lg flex items-center justify-center gap-2">
                 Hacer Plantilla Ahora

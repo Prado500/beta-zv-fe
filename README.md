@@ -18,6 +18,34 @@ El ciclo de vida de la compra y generación del producto sigue este orden estric
 
 ---
 
+## 🔌 Conexión con la API
+
+Todas las llamadas pasan por `src/utils/api.ts`, que es el único sitio donde se
+manejan cookies y CSRF:
+
+* **Sesión.** Cookie `HttpOnly` del backend. Cada llamada usa `credentials: 'include'`;
+  no hay ningún token en `localStorage` ni en el estado de React.
+* **CSRF.** `apiFetch` pide `GET /api/v1/auth/csrf` la primera vez, cachea el token y
+  lo manda en `X-CSRF-Token` en todo POST/PUT/PATCH/DELETE. Si el servidor lo rechaza
+  por caducado, lo renueva y reintenta una sola vez.
+* **Origen.** Por defecto las rutas son relativas (mismo origen). En desarrollo el
+  proxy de `vite.config.ts` manda `/api` a `http://127.0.0.1:8000`; esto **no es
+  comodidad**: la cookie es `SameSite=Lax` y en una llamada de 5173 a 8000 el
+  navegador no la enviaría. Se puede apuntar a otro backend con
+  `VITE_API_PROXY_TARGET` (desarrollo) o `VITE_API_BASE_URL` (build).
+
+### Creación asíncrona de la carta
+
+`POST /api/v1/letters` responde **202 Accepted**: valida la compra, encola el encargo
+y contesta sin haber escrito nada. En ese momento **no existe** enlace público ni QR,
+así que el editor muestra una pantalla de "tu carta se está procesando" y el enlace,
+el QR y el archivo adjunto llegan por correo cuando el worker termina. Las fotos se
+suben antes, una a una, a `POST /api/v1/letters/photos/eager`; la previsualización usa
+siempre `URL.createObjectURL` porque el contenedor temporal es privado y no devuelve
+URLs públicas.
+
+---
+
 ## 🛠️ Stack Tecnológico y Librerías
 
 ### Frontend (Este Repositorio)

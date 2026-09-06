@@ -254,22 +254,35 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ data, isFullView = f
     }, 120);
   };
 
+  /**
+   * URLs pintables de las fotos.
+   *
+   * `data.photos` guarda además el `tempId` del servidor, que aquí no sirve de
+   * nada: la clave temporal apunta a un contenedor privado. Lo único que se
+   * puede pintar es `previewUrl` —el `blob:` local en el editor, la ruta pública
+   * de la API en el visor—, así que la vista trabaja siempre con esa lista.
+   */
+  const photoUrls = useMemo(
+    () => (data.photos ?? []).map((photo) => photo.previewUrl),
+    [data.photos],
+  );
+
   const nextPhoto = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (selectedPhotoIndex !== null && data.photos) {
-      setSelectedPhotoIndex((selectedPhotoIndex + 1) % data.photos.length);
+    if (selectedPhotoIndex !== null && photoUrls.length) {
+      setSelectedPhotoIndex((selectedPhotoIndex + 1) % photoUrls.length);
     }
   };
 
   const prevPhoto = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (selectedPhotoIndex !== null && data.photos) {
-      setSelectedPhotoIndex((selectedPhotoIndex - 1 + data.photos.length) % data.photos.length);
+    if (selectedPhotoIndex !== null && photoUrls.length) {
+      setSelectedPhotoIndex((selectedPhotoIndex - 1 + photoUrls.length) % photoUrls.length);
     }
   };
 
   const renderCardBody = () => {
-    const photos = data.photos?.slice(0, 5) || [];
+    const photos = photoUrls.slice(0, 5);
     const messageText = data.message || 'Escribe tu mensaje desde el editor...';
     
     const rawParagraphs = messageText.split('\n');
@@ -907,7 +920,7 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ data, isFullView = f
         </div>
 
         {/* Visor Lightbox */}
-        {selectedPhotoIndex !== null && data.photos && (
+        {selectedPhotoIndex !== null && photoUrls.length > 0 && (
           <div 
             className={`absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 transition-opacity duration-150 ${
               isClosingPhoto ? 'opacity-0' : 'opacity-100'
@@ -928,15 +941,15 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ data, isFullView = f
               onClick={(e) => e.stopPropagation()}
             >
               <img 
-                src={data.photos[selectedPhotoIndex]} 
+                src={photoUrls[selectedPhotoIndex]} 
                 alt={`Ampliada ${selectedPhotoIndex + 1}`} 
                 className="max-w-full max-h-[55vh] object-contain rounded-xs bg-black/5" 
               />
               <p className="font-serif text-xs text-slate-500 mt-3 font-medium">
-                {selectedPhotoIndex + 1} de {data.photos.length}
+                {selectedPhotoIndex + 1} de {photoUrls.length}
               </p>
 
-              {data.photos.length > 1 && (
+              {photoUrls.length > 1 && (
                 <>
                   <button 
                     onClick={prevPhoto}
