@@ -159,6 +159,21 @@ const send = async (path: string, options: ApiOptions, token: string | null): Pr
 };
 
 /**
+ * Respuesta con su código de estado.
+ *
+ * El backend degrada con elegancia: la misma llamada responde **202** cuando el
+ * encargo se publicó en la cola y **201/200** cuando lo resolvió en el acto. Las
+ * dos son un éxito y las dos traen un cuerpo distinto, así que quien llama no
+ * puede adivinar el modo por la forma del payload — tiene que leer el estado.
+ * Por eso `apiRequest` lo devuelve: es el único dato que distingue "encolado" de
+ * "ya está hecho" sin inventarse heurísticas sobre campos que quizá no existan.
+ */
+export interface ApiResult<T> {
+  status: number;
+  data: T;
+}
+
+/**
  * Llama a la API con la sesión y el CSRF ya resueltos.
  *
  * Toda escritura obtiene el token antes de salir; si el servidor lo rechaza
@@ -166,7 +181,10 @@ const send = async (path: string, options: ApiOptions, token: string | null): Pr
  * uno nuevo y se reintenta **una sola vez**: el usuario no debería perder lo que
  * escribió por un detalle de infraestructura.
  */
-export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promise<T> {
+export async function apiRequest<T>(
+  path: string,
+  options: ApiOptions = {},
+): Promise<ApiResult<T>> {
   const method = options.method ?? 'GET';
   const needsCsrf = WRITES.has(method);
 
@@ -182,7 +200,13 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
 
   const payload = await parse(response);
   if (!response.ok) throw toApiError(response.status, payload);
-  return payload as T;
+  return { status: response.status, data: payload as T };
+}
+
+/** Igual que `apiRequest`, pero devolviendo solo el cuerpo. */
+export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promise<T> {
+  const { data } = await apiRequest<T>(path, options);
+  return data;
 }
 
 export const apiGet = <T>(path: string, signal?: AbortSignal): Promise<T> =>
@@ -190,6 +214,10 @@ export const apiGet = <T>(path: string, signal?: AbortSignal): Promise<T> =>
 
 export const apiPost = <T>(path: string, body?: unknown): Promise<T> =>
   apiFetch<T>(path, { method: 'POST', body: body ?? {} });
+
+/** POST que conserva el código de estado (202 encolado vs. 201/200 inmediato). */
+export const apiPostResult = <T>(path: string, body?: unknown): Promise<ApiResult<T>> =>
+  apiRequest<T>(path, { method: 'POST', body: body ?? {} });
 
 export const apiUpload = <T>(path: string, form: FormData): Promise<T> =>
   apiFetch<T>(path, { method: 'POST', form });

@@ -1,17 +1,25 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { THEME_PRESETS, type DedicationForm } from '../types';
 import { PhonePreview } from '../components/PhonePreview';
 import { Ornament, CornerFlourish, HeartConfetti, Rose } from '../../../components/decor';
 import { QueuedModal } from '../components/QueuedModal';
-import { createLetter, uploadEagerPhoto, uploadedPhotos } from '../services/letters';
-import { compressImage } from '../../../utils/compressImage';
-import { ApiError } from '../../../utils/api';
+import { SuccessModal } from '../components/SuccessModal';
+import { EmailConfirmModal } from '../components/EmailConfirmModal';
+import { useLetterEditor } from '../hooks/useLetterEditor';
+import { MAX_PHOTOS, type LetterInput } from '../schemas/letterSchema';
+import { FieldError } from '../../../components/ui/FieldError';
+import { fieldClass, fieldTone, HINT, LABEL } from '../../../components/ui/formStyles';
 
-const MAX_PHOTOS = 5;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+/**
+ * Mesa de trabajo de la carta. Solo pinta.
+ *
+ * Toda la lógica —validación, subida anticipada de fotos, doble confirmación del
+ * correo y envío— vive en `useLetterEditor`. Aquí no hay ni un `fetch` ni un
+ * `if` sobre códigos de estado: esta pantalla no sabe que existe una API.
+ */
 
-/** Compra que habilita esta carta; llega en el estado de la ruta desde el checkout. */
+/** Compra que habilita esta carta; llega en el estado de la ruta desde el pago. */
 interface EditorState {
   purchaseId?: string;
 }
@@ -23,22 +31,32 @@ export default function EditorPage() {
 
   const [step, setStep] = useState<number>(1);
   const [mobileTab, setMobileTab] = useState<'edit' | 'preview'>('edit');
-  /** Acuse del 202: la carta quedó encolada y llegará por correo. */
-  const [queued, setQueued] = useState<string | null>(null);
-  const [publishing, setPublishing] = useState(false);
-  const [publishError, setPublishError] = useState<string | null>(null);
-  const [compressing, setCompressing] = useState(false);
 
-  const [form, setForm] = useState<DedicationForm>({
-    title: '',
-    recipient: '',
-    recipientEmail: '',
-    sender: '',
-    message: '',
-    songUrl: '',
-    themeId: 'classic',
-    photos: [],
-  });
+  const {
+    form,
+    photos,
+    confirmingEmail,
+    submitting,
+    error,
+    outcome,
+    canSubmit,
+    requestSubmit,
+    confirmSubmit,
+    cancelConfirm,
+    revealStepErrors,
+    dismissOutcome,
+  } = useLetterEditor(purchaseId);
+
+  const {
+    register,
+    setValue,
+    watch,
+    formState: { errors, dirtyFields },
+  } = form;
+
+  // La previsualización se alimenta de lo que hay escrito ahora mismo, sin
+  // esperar a que el campo sea válido: se está viendo escribir, no publicar.
+  const values = watch();
 
   // Sin compra pagada no hay carta que crear: el backend respondería 404/409 y el
   // usuario perdería lo escrito. Se devuelve a la landing antes de empezar.
@@ -46,155 +64,20 @@ export default function EditorPage() {
     if (!purchaseId) navigate('/', { replace: true });
   }, [purchaseId, navigate]);
 
-  // Las URLs `blob:` viven mientras dure la pestaña; al salir se liberan.
-  useEffect(
-    () => () => {
-      form.photos.forEach((photo) => URL.revokeObjectURL(photo.previewUrl));
-    },
-    // Solo al desmontar: la lista cambia en cada subida y no queremos revocar en uso.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
+  const tone = (field: keyof LetterInput) =>
+    fieldTone(Boolean(errors[field]), Boolean(dirtyFields[field]));
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const goTo = (next: number) => {
+    revealStepErrors(step);
+    setStep(next);
   };
 
-  /**
-   * Eager upload: la foto sale hacia el servidor en cuanto se elige, no al final.
-   *
-   * La previsualización usa SIEMPRE la URL local del archivo. El servidor
-   * responde con un `tempId` de un contenedor privado, no con una URL pública:
-   * pintar esa respuesta daría una imagen rota. Cada foto entra primero como
-   * `uploading` con su `blob:` ya visible y luego se marca `ready` con su clave.
-   */
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return;
-    const files = Array.from(e.target.files);
-    // Permite volver a elegir el mismo archivo tras quitarlo
-    e.target.value = '';
-
-    if (form.photos.length + files.length > MAX_PHOTOS) {
-      setPublishError(`Puedes subir un máximo de ${MAX_PHOTOS} fotos.`);
-      return;
-    }
-    setPublishError(null);
-
-    setCompressing(true);
-    let prepared: { blob: Blob; previewUrl: string; fileName: string }[] = [];
-    try {
-      // Se reducen antes de subir: el original de un móvil pesa 3-5 MB y el
-      // backend rechaza por encima de MAX_PHOTO_BYTES.
-      const results = await Promise.all(files.map(compressImage));
-      prepared = results.map(({ blob }, index) => ({
-        blob,
-        previewUrl: URL.createObjectURL(blob),
-        fileName: files[index].name || `foto-${index + 1}.jpg`,
-      }));
-      setForm((prev) => ({
-        ...prev,
-        photos: [
-          ...prev.photos,
-          ...prepared.map(({ previewUrl, fileName }) => ({
-            tempId: null,
-            previewUrl,
-            fileName,
-            status: 'uploading' as const,
-          })),
-        ],
-      }));
-    } finally {
-      setCompressing(false);
-    }
-
-    // Cada subida actualiza su propia foto por `previewUrl`, que es única: el
-    // usuario puede quitar o añadir otras mientras estas siguen viajando.
-    await Promise.all(
-      prepared.map(async ({ blob, previewUrl, fileName }) => {
-        try {
-          const stored = await uploadEagerPhoto(blob, fileName);
-          setForm((prev) => ({
-            ...prev,
-            photos: prev.photos.map((photo) =>
-              photo.previewUrl === previewUrl
-                ? { ...photo, tempId: stored.tempId, status: 'ready' as const }
-                : photo,
-            ),
-          }));
-        } catch {
-          setForm((prev) => ({
-            ...prev,
-            photos: prev.photos.map((photo) =>
-              photo.previewUrl === previewUrl ? { ...photo, status: 'error' as const } : photo,
-            ),
-          }));
-        }
-      }),
-    );
+  const onPickFiles = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    // Permite volver a elegir el mismo archivo tras quitarlo.
+    event.target.value = '';
+    void photos.addFiles(files);
   };
-
-  /** Lo que falta para poder enviar. Se muestra tal cual, sin bloquear el botón. */
-  const missing = (): string | null => {
-    if (!form.title.trim()) return 'Ponle un título a la carta (paso 1).';
-    if (!form.recipient.trim()) return 'Falta para quién es la carta (paso 1).';
-    if (!EMAIL_RE.test(form.recipientEmail.trim())) {
-      return 'Necesitamos el correo de quien la recibe para poder enviársela (paso 1).';
-    }
-    if (!form.message.trim()) return 'La carta todavía no tiene mensaje (paso 1).';
-    if (form.photos.some((photo) => photo.status === 'uploading')) {
-      return 'Espera a que terminen de subir las fotos.';
-    }
-    return null;
-  };
-
-  /**
-   * Envía la carta. El backend responde **202**: valida la compra, encola el
-   * encargo y contesta sin escribir nada. No hay enlace ni QR que mostrar aquí;
-   * los manda por correo el worker cuando termina.
-   */
-  const handlePublish = async () => {
-    if (!purchaseId) return;
-    const problem = missing();
-    if (problem) {
-      setPublishError(problem);
-      return;
-    }
-
-    setPublishing(true);
-    setPublishError(null);
-    try {
-      const accepted = await createLetter(purchaseId, form);
-      // Con la cola apagada el backend responde 201 con la carta ya escrita y sin
-      // `message`. El acuse es el mismo para el usuario: la carta salió y el correo
-      // va en camino, así que se muestra la misma pantalla con el texto por defecto.
-      setQueued(accepted.message ?? '');
-    } catch (error) {
-      if (error instanceof ApiError && error.code === 'LETTER_ALREADY_EXISTS') {
-        setPublishError('Esta compra ya tiene su carta. Revisa tu correo: te la enviamos ahí.');
-      } else if (error instanceof ApiError && error.status === 401) {
-        setPublishError('Tu sesión expiró. Vuelve a la página principal e inicia sesión de nuevo.');
-      } else {
-        setPublishError(
-          error instanceof ApiError
-            ? error.message
-            : 'No pudimos enviar tu carta. Intenta otra vez.',
-        );
-      }
-    } finally {
-      setPublishing(false);
-    }
-  };
-
-  const removePhoto = (index: number) => {
-    setForm((prev) => {
-      const gone = prev.photos[index];
-      if (gone) URL.revokeObjectURL(gone.previewUrl);
-      return { ...prev, photos: prev.photos.filter((_, i) => i !== index) };
-    });
-  };
-
-  const ready = uploadedPhotos(form.photos).length;
-  const uploading = form.photos.filter((photo) => photo.status === 'uploading').length;
 
   return (
     <div className="relative w-full min-h-screen paper-sheet paper-vignette text-on-background flex flex-col">
@@ -262,7 +145,7 @@ export default function EditorPage() {
                   <button
                     key={s.num}
                     type="button"
-                    onClick={() => setStep(s.num)}
+                    onClick={() => goTo(s.num)}
                     className="flex flex-col items-center gap-1.5 px-3 cursor-pointer group"
                   >
                     <span
@@ -288,7 +171,11 @@ export default function EditorPage() {
               })}
             </div>
 
-            <div className="relative bg-white rounded-4xl shadow-[0_24px_50px_-24px_rgba(94,10,27,0.35)] border border-wine/12 p-6 md:p-8 flex flex-col gap-5 overflow-hidden">
+            <form
+              onSubmit={requestSubmit}
+              noValidate
+              className="relative bg-white rounded-4xl shadow-[0_24px_50px_-24px_rgba(94,10,27,0.35)] border border-wine/12 p-6 md:p-8 flex flex-col gap-5 overflow-hidden"
+            >
               <div className="absolute top-0 inset-x-0 h-1.5 bg-linear-to-r from-wine-deep via-wine to-tertiary"></div>
               <CornerFlourish corner="tr" tone="gold" size={64} className="opacity-60" />
               <CornerFlourish corner="bl" tone="gold" size={64} className="opacity-60" />
@@ -302,29 +189,89 @@ export default function EditorPage() {
                     </h2>
                     <Ornament tone="gold" width={150} className="mx-auto mt-1" />
                   </div>
+
                   <div>
-                    <label className="block text-[11px] font-bold text-wine/75 uppercase tracking-wider mb-1.5">Título de la carta</label>
-                    <input name="title" value={form.title} onChange={handleChange} placeholder="Ej. Feliz Aniversario, Mi Amor" className="w-full bg-paper/60 border border-wine/15 rounded-xl px-4 py-3 outline-none transition-all focus:border-wine focus:bg-white focus:ring-2 focus:ring-wine/15 font-medium" />
+                    <label className={LABEL} htmlFor="letter-title">Título de la carta</label>
+                    <input
+                      id="letter-title"
+                      {...register('title')}
+                      maxLength={120}
+                      placeholder="Ej. Feliz Aniversario, Mi Amor"
+                      aria-invalid={Boolean(errors.title)}
+                      aria-describedby={errors.title ? 'letter-title-error' : undefined}
+                      className={fieldClass(tone('title'), 'font-medium')}
+                    />
+                    <FieldError id="letter-title-error" message={errors.title?.message} />
                   </div>
+
                   <div>
-                    <label className="block text-[11px] font-bold text-wine/75 uppercase tracking-wider mb-1.5">Para quién es</label>
-                    <input name="recipient" value={form.recipient} onChange={handleChange} placeholder="Ej. Mi persona favorita" className="w-full bg-paper/60 border border-wine/15 rounded-xl px-4 py-3 outline-none transition-all focus:border-wine focus:bg-white focus:ring-2 focus:ring-wine/15" />
+                    <label className={LABEL} htmlFor="letter-recipient">Para quién es</label>
+                    <input
+                      id="letter-recipient"
+                      {...register('recipient')}
+                      maxLength={80}
+                      placeholder="Ej. Ana María"
+                      aria-invalid={Boolean(errors.recipient)}
+                      aria-describedby={errors.recipient ? 'letter-recipient-error' : undefined}
+                      className={fieldClass(tone('recipient'))}
+                    />
+                    <FieldError id="letter-recipient-error" message={errors.recipient?.message} />
                   </div>
+
                   <div>
-                    <label className="block text-[11px] font-bold text-wine/75 uppercase tracking-wider mb-1.5">Correo de quien la recibe</label>
-                    <input type="email" name="recipientEmail" value={form.recipientEmail} onChange={handleChange} placeholder="ana@ejemplo.com" className="w-full bg-paper/60 border border-wine/15 rounded-xl px-4 py-3 outline-none transition-all focus:border-wine focus:bg-white focus:ring-2 focus:ring-wine/15" />
-                    <p className="text-xs text-wine/60 mt-1.5 flex items-center gap-1.5">
+                    {/*
+                      El correo es el de quien compra, no el de su pareja, salvo que
+                      él quiera. Decirlo en el propio label evita el error más caro
+                      del producto: mandarle la sorpresa a quien iba a recibirla.
+                    */}
+                    <label className={LABEL} htmlFor="letter-email">
+                      Tu correo (o el correo donde quieres recibir el regalo para dárselo a tu pareja)
+                    </label>
+                    <input
+                      id="letter-email"
+                      type="email"
+                      {...register('recipientEmail')}
+                      autoComplete="email"
+                      placeholder="tucorreo@ejemplo.com"
+                      aria-invalid={Boolean(errors.recipientEmail)}
+                      aria-describedby={errors.recipientEmail ? 'letter-email-error' : undefined}
+                      className={fieldClass(tone('recipientEmail'))}
+                    />
+                    <FieldError id="letter-email-error" message={errors.recipientEmail?.message} />
+                    <p className={HINT}>
                       <span className="material-symbols-outlined text-[15px]">mail</span>
-                      Ahí llegará la carta con su enlace, el QR y el archivo adjunto.
+                      A esta dirección llegan el enlace de la carta, el código QR y el archivo
+                      descargable. Ponla bien: es lo que vas a entregar.
                     </p>
                   </div>
+
                   <div>
-                    <label className="block text-[11px] font-bold text-wine/75 uppercase tracking-wider mb-1.5">De parte de</label>
-                    <input name="sender" value={form.sender} onChange={handleChange} placeholder="Ej. Sebastián" className="w-full bg-paper/60 border border-wine/15 rounded-xl px-4 py-3 outline-none transition-all focus:border-wine focus:bg-white focus:ring-2 focus:ring-wine/15" />
+                    <label className={LABEL} htmlFor="letter-sender">De parte de</label>
+                    <input
+                      id="letter-sender"
+                      {...register('sender')}
+                      maxLength={80}
+                      placeholder="Ej. Sebastián"
+                      aria-invalid={Boolean(errors.sender)}
+                      aria-describedby={errors.sender ? 'letter-sender-error' : undefined}
+                      className={fieldClass(tone('sender'))}
+                    />
+                    <FieldError id="letter-sender-error" message={errors.sender?.message} />
                   </div>
+
                   <div>
-                    <label className="block text-[11px] font-bold text-wine/75 uppercase tracking-wider mb-1.5">Tu Mensaje</label>
-                    <textarea name="message" value={form.message} onChange={handleChange} rows={4} placeholder="Escribe desde el corazón..." className="w-full bg-paper/60 border border-wine/15 rounded-xl px-4 py-3 outline-none transition-all focus:border-wine focus:bg-white focus:ring-2 focus:ring-wine/15 resize-none" />
+                    <label className={LABEL} htmlFor="letter-message">Tu Mensaje</label>
+                    <textarea
+                      id="letter-message"
+                      {...register('message')}
+                      rows={4}
+                      maxLength={4000}
+                      placeholder="Escribe desde el corazón..."
+                      aria-invalid={Boolean(errors.message)}
+                      aria-describedby={errors.message ? 'letter-message-error' : undefined}
+                      className={fieldClass(tone('message'), 'resize-none')}
+                    />
+                    <FieldError id="letter-message-error" message={errors.message?.message} />
                   </div>
                 </>
               )}
@@ -342,15 +289,15 @@ export default function EditorPage() {
                     <div className="flex justify-between items-center mb-1">
                       <label className="block text-[11px] font-bold text-wine/75 uppercase tracking-wider">Fotos (máximo {MAX_PHOTOS})</label>
                       <span className="text-[11px] font-semibold text-wine/70 bg-blush/70 px-2.5 py-0.5 rounded-full ring-1 ring-wine/10">
-                        {compressing
+                        {photos.compressing
                           ? 'Optimizando…'
-                          : uploading > 0
-                            ? `Subiendo a la nube… ${ready}/${form.photos.length}`
-                            : `${form.photos.length}/${MAX_PHOTOS}`}
+                          : photos.uploading > 0
+                            ? `Subiendo a la nube… ${photos.ready}/${photos.photos.length}`
+                            : `${photos.photos.length}/${MAX_PHOTOS}`}
                       </span>
                     </div>
                     <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-3">
-                      {form.photos.map((photo, i) => (
+                      {photos.photos.map((photo, i) => (
                         <div
                           key={photo.previewUrl}
                           className="group relative aspect-square rounded-xl overflow-hidden bg-white p-1 ring-1 ring-wine/15 shadow-[0_6px_14px_-8px_rgba(94,10,27,0.5)]"
@@ -378,7 +325,7 @@ export default function EditorPage() {
                           )}
                           <button
                             type="button"
-                            onClick={() => removePhoto(i)}
+                            onClick={() => photos.removePhoto(i)}
                             aria-label={`Quitar ${photo.fileName}`}
                             className="absolute top-1.5 right-1.5 bg-wine-deep/80 hover:bg-wine text-white rounded-full p-0.5 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                           >
@@ -386,19 +333,39 @@ export default function EditorPage() {
                           </button>
                         </div>
                       ))}
-                      {form.photos.length < MAX_PHOTOS && (
+                      {photos.photos.length < MAX_PHOTOS && (
                         <label className="aspect-square rounded-xl border-[1.5px] border-dashed border-wine/35 bg-paper/50 flex flex-col items-center justify-center cursor-pointer hover:border-wine hover:bg-blush/50 transition-colors">
                           <span className="material-symbols-outlined text-wine text-xl">add_a_photo</span>
                           <span className="text-[10px] font-semibold text-wine/70 mt-1">Subir</span>
-                          <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} className="hidden" />
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={onPickFiles}
+                            aria-label="Subir fotos"
+                            className="hidden"
+                          />
                         </label>
                       )}
                     </div>
+                    {photos.error && (
+                      <p className="text-xs text-error font-medium" role="alert">
+                        {photos.error}
+                      </p>
+                    )}
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-wine/75 uppercase tracking-wider mb-1.5">Enlace de Canción (YouTube)</label>
-                    <input name="songUrl" value={form.songUrl} onChange={handleChange} placeholder="https://www.youtube.com/watch?v=..." className="w-full bg-paper/60 border border-wine/15 rounded-xl px-4 py-3 outline-none transition-all focus:border-wine focus:bg-white focus:ring-2 focus:ring-wine/15" />
-                    <p className="text-xs text-wine/60 mt-1.5 flex items-center gap-1.5">
+                    <label className={LABEL} htmlFor="letter-song">Enlace de Canción (YouTube)</label>
+                    <input
+                      id="letter-song"
+                      {...register('songUrl')}
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      aria-invalid={Boolean(errors.songUrl)}
+                      aria-describedby={errors.songUrl ? 'letter-song-error' : undefined}
+                      className={fieldClass(tone('songUrl'))}
+                    />
+                    <FieldError id="letter-song-error" message={errors.songUrl?.message} />
+                    <p className={HINT}>
                       <span className="material-symbols-outlined text-[15px]">music_note</span>
                       Sonará automáticamente cuando el destinatario abra la carta.
                     </p>
@@ -420,14 +387,14 @@ export default function EditorPage() {
                       <button
                         key={t.id}
                         type="button"
-                        onClick={() => setForm({ ...form, themeId: t.id })}
+                        onClick={() => setValue('themeId', t.id, { shouldValidate: true, shouldDirty: true })}
                         className={`relative p-2.5 rounded-2xl border-2 text-left transition-all flex flex-col gap-2 cursor-pointer ${
-                          form.themeId === t.id
+                          values.themeId === t.id
                             ? 'border-wine bg-blush/40 shadow-[0_10px_22px_-12px_rgba(140,17,40,0.6)]'
                             : 'border-wine/15 bg-white hover:border-wine/45'
                         }`}
                       >
-                        {form.themeId === t.id && (
+                        {values.themeId === t.id && (
                           <span className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-full bg-wine text-white flex items-center justify-center shadow-md">
                             <span className="material-symbols-outlined text-[15px]" style={{ fontVariationSettings: "'FILL' 1" }}>check</span>
                           </span>
@@ -444,28 +411,34 @@ export default function EditorPage() {
 
               <div className="flex justify-between items-center mt-4 pt-5 border-t border-wine/12">
                 <button
+                  type="button"
                   disabled={step === 1}
-                  onClick={() => setStep((s) => s - 1)}
+                  onClick={() => goTo(step - 1)}
                   className="px-5 py-2 rounded-full text-wine disabled:opacity-25 font-semibold text-sm flex items-center gap-1 hover:bg-blush/60 transition-colors cursor-pointer disabled:cursor-default disabled:hover:bg-transparent"
                 >
                   <span className="material-symbols-outlined text-sm">arrow_back</span> Atrás
                 </button>
                 {step < 3 ? (
                   <button
-                    onClick={() => setStep((s) => s + 1)}
+                    type="button"
+                    onClick={() => goTo(step + 1)}
                     className="px-7 py-3 rounded-full bg-wine text-white font-semibold text-sm shadow-[0_10px_24px_-10px_rgba(140,17,40,0.8)] flex items-center gap-1.5 hover:bg-primary hover:-translate-y-0.5 transition-all cursor-pointer"
                   >
                     Siguiente <span className="material-symbols-outlined text-sm">arrow_forward</span>
                   </button>
                 ) : (
                   <button
-                    onClick={handlePublish}
-                    disabled={publishing}
+                    type="submit"
+                    disabled={!canSubmit}
                     className="relative group cursor-pointer disabled:cursor-wait"
                   >
                     <span className="absolute -inset-1 rounded-full bg-linear-to-r from-wine to-[#D4AF37] blur opacity-30 group-hover:opacity-55 transition-opacity"></span>
                     <span className="relative px-7 py-3 rounded-full bg-wine text-white font-semibold text-sm shadow-lg flex items-center gap-1.5 hover:bg-primary transition-colors">
-                      {publishing ? 'Enviando…' : 'Guardar y compartir'}
+                      {submitting
+                        ? 'Enviando…'
+                        : photos.uploading > 0
+                          ? 'Esperando las fotos…'
+                          : 'Guardar y compartir'}
                       <span
                         className="material-symbols-outlined text-[18px]"
                         style={{ fontVariationSettings: "'FILL' 1" }}
@@ -477,12 +450,20 @@ export default function EditorPage() {
                 )}
               </div>
 
-              {publishError && (
-                <p className="text-sm text-error text-center -mt-1" role="alert">
-                  {publishError}
+              {photos.uploading > 0 && (
+                <p className="text-xs text-wine/70 text-center -mt-1">
+                  Quedan {photos.uploading} foto(s) subiendo. En cuanto terminen podrás enviar la
+                  carta.
                 </p>
               )}
-            </div>
+
+              {/* Mientras la confirmación está abierta el error se ve ahí, no aquí. */}
+              {error && !confirmingEmail && (
+                <p className="text-sm text-error font-medium text-center -mt-1" role="alert">
+                  {error}
+                </p>
+              )}
+            </form>
           </section>
 
           <section className={`flex-col items-center md:sticky md:top-24 ${mobileTab === 'preview' ? 'flex' : 'hidden md:flex'}`}>
@@ -523,17 +504,48 @@ export default function EditorPage() {
               <Ornament tone="gold" width={132} className="md:hidden mt-1 mb-3 opacity-80" />
               <span className="hidden md:block h-3" />
 
-              <PhonePreview data={form} />
+              <PhonePreview data={values as DedicationForm} />
             </div>
           </section>
         </div>
       </main>
 
+      {/* Se monta al abrirse: así el correo editable nace con el valor correcto. */}
+      {confirmingEmail !== null && (
+        <EmailConfirmModal
+          email={confirmingEmail}
+          submitting={submitting}
+          error={error}
+          onConfirm={(confirmed) => void confirmSubmit(confirmed)}
+          onCancel={cancelConfirm}
+        />
+      )}
+
+      {/*
+        Dos desenlaces posibles y excluyentes. Cuál se ve lo decidió el código de
+        estado que devolvió el backend, no una suposición sobre su configuración:
+        202 = encolada (el enlace llega por correo), 201/200 = ya está escrita.
+      */}
       <QueuedModal
-        open={queued !== null}
-        message={queued ?? ''}
-        recipientEmail={form.recipientEmail}
-        onClose={() => navigate('/', { replace: true })}
+        open={outcome?.mode === 'queued'}
+        message={outcome?.mode === 'queued' ? outcome.message : ''}
+        recipientEmail={values.recipientEmail}
+        onClose={() => {
+          dismissOutcome();
+          navigate('/', { replace: true });
+        }}
+      />
+
+      <SuccessModal
+        open={outcome?.mode === 'ready'}
+        publicUrl={outcome?.mode === 'ready' ? outcome.publicUrl : ''}
+        qrUrl={outcome?.mode === 'ready' ? outcome.qrUrl : null}
+        recipientEmail={values.recipientEmail}
+        letter={values as DedicationForm}
+        onClose={() => {
+          dismissOutcome();
+          navigate('/', { replace: true });
+        }}
       />
     </div>
   );
