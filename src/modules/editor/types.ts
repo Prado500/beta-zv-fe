@@ -1,12 +1,47 @@
+/**
+ * Foto del editor. Vive en dos sitios a la vez y por eso guarda dos referencias:
+ *
+ * - `previewUrl` es un `blob:` local (`URL.createObjectURL`) y es lo ÚNICO que se
+ *   puede pintar. El contenedor temporal del backend es privado: no devuelve una
+ *   URL pública, así que pintar la respuesta del servidor daría una imagen rota.
+ * - `tempId` es la clave que devolvió el *eager upload* y lo único que se manda
+ *   al crear la carta; el worker la usa para trasladar la foto al almacenamiento
+ *   permanente.
+ */
+export interface PhotoUpload {
+  /** Clave temporal del servidor. `null` mientras la subida está en curso o falló. */
+  tempId: string | null;
+  /** `blob:` local para la previsualización. */
+  previewUrl: string;
+  /** Nombre original del archivo; el backend lo guarda como pie de foto. */
+  fileName: string;
+  status: 'uploading' | 'ready' | 'error';
+}
+
 export interface DedicationForm {
   recipient: string;
+  /** Correo de quien recibe la carta. El backend lo exige para poder enviarla. */
+  recipientEmail: string;
   title: string;
   message: string;
   sender: string;
   songUrl: string;
   themeId: string;
-  photos: string[];
+  photos: PhotoUpload[];
 }
+
+/**
+ * Identificador del tema tal como lo acepta el backend.
+ *
+ * `LetterCreate.theme` valida contra `^[a-z0-9\-]+$`, así que un id en camelCase
+ * como `pastelPink` provocaría un 422. Se traduce a `pastel-pink` al enviar y se
+ * deshace al leer la carta publicada.
+ */
+export const themeSlug = (id: string): string =>
+  id.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+
+export const themeFromSlug = (slug: string): string =>
+  Object.keys(THEME_PRESETS).find((id) => themeSlug(id) === slug) ?? 'classic';
 
 export interface ThemePreset {
   id: string;

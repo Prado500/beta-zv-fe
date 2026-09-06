@@ -42,7 +42,7 @@ export const downloadCardHtml = async (data: DedicationForm): Promise<void> => {
   const videoId = getYouTubeId(data.songUrl);
 
   const [photos, flowers] = await Promise.all([
-    Promise.all((data.photos || []).map(blobToBase64)),
+    Promise.all((data.photos ?? []).map((photo) => blobToBase64(photo.previewUrl))),
     encodeFlowerAssets(data.themeId, theme.animationType),
   ]);
 
