@@ -1,5 +1,5 @@
 # ==============================================================================
-# v0.1.0-dev
+# v0.1.0-dev-alpha
 # PIPELINE CD: FRONTEND ZYVENCORE VALENTINE
 # Propósito: compilar y publicar en Azure Static Web Apps.
 # Se dispara EXCLUSIVAMENTE tras un merge (o push) a ramas principales.
