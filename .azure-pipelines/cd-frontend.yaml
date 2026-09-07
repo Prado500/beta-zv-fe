@@ -1,17 +1,5 @@
 # ==============================================================================
-# v0.1.0-dev-alpha
 # PIPELINE CD: FRONTEND ZYVENCORE VALENTINE
-# Propósito: compilar y publicar en Azure Static Web Apps.
-# Se dispara EXCLUSIVAMENTE tras un merge (o push) a ramas principales.
-#
-# La compilación ocurre AQUÍ, en el agente, y no dentro del contenedor de Oryx
-# que la tarea de SWA levanta por su cuenta. Son tres razones:
-#   1. Oryx elige su propio Node y `package.json` no puede garantizarle nada;
-#      vite@8 exige >= 20.19 y un Node viejo rompe el build en producción.
-#   2. Oryx instala con `npm install`, ignorando el lockfile que validó el CI.
-#   3. `VITE_API_BASE_URL` se inlinea durante `vite build`. Si el build ocurre
-#      dentro de Oryx, hay que confiar en que la variable cruce el contenedor;
-#      aquí se pone en el paso que la lee y se acabó la duda.
 # ==============================================================================
 trigger:
   branches:
@@ -19,6 +7,7 @@ trigger:
       - develop
       - staging
       - main
+      - fixci # Rama temporal para depuración
 
 pr: none
 
@@ -26,21 +15,23 @@ pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  ${{ if eq(variables['Build.SourceBranchName'], 'develop') }}:
-    ENTORNO: 'VG-ZV-DEV'
-  ${{ elseif eq(variables['Build.SourceBranchName'], 'staging') }}:
-    ENTORNO: 'VG-ZV-STG'
-  ${{ elseif eq(variables['Build.SourceBranchName'], 'main') }}:
-    ENTORNO: 'VG-ZV-MAIN'
+  # Evaluación en la raíz usando SourceBranchName (sin refs/heads/)
+  - ${{ if eq(variables['Build.SourceBranchName'], 'develop') }}:
+      - group: 'VG-ZV-DEV'
+  - ${{ if eq(variables['Build.SourceBranchName'], 'staging') }}:
+      - group: 'VG-ZV-STG'
+  - ${{ if eq(variables['Build.SourceBranchName'], 'main') }}:
+      - group: 'VG-ZV-MAIN'
+
+  # Trampa temporal: Fuerza el grupo de variables de DEV para la rama de pruebas
+  - ${{ if eq(variables['Build.SourceBranchName'], 'fixci') }}:
+      - group: 'VG-ZV-DEV'
 
 stages:
   - stage: Deploy_Web
     displayName: 'Despliegue a Azure Static Web Apps'
     jobs:
       - job: Compilar_y_Desplegar
-        variables:
-          - group: ${{ variables.ENTORNO }}
-
         steps:
           - task: NodeTool@0
             inputs:
@@ -50,25 +41,19 @@ stages:
           - script: npm ci
             displayName: 'Instalar dependencias exactas'
 
-          # El disparador es el push a la rama, no el Pull Request. Si alguien
-          # mergea saltándose la política de rama, este paso es la única red que
-          # queda entre un fallo y producción.
           - script: npm run test
             displayName: 'Puerta previa: pruebas unitarias (Vitest)'
 
           - script: npm run build
             displayName: 'Compilar el bundle de producción'
             env:
-              # SOLO el origen: https://mi-backend.azurewebsites.net
-              # `apiUrl()` le concatena rutas que ya empiezan por /api/v1, así que
-              # un valor con sufijo generaría /api/v1/api/v1/... y todo daría 404.
               VITE_API_BASE_URL: $(DEPLOYED_BACKEND)
 
           - task: AzureStaticWebApp@0
             displayName: 'CD: Publicar en Azure SWA'
             inputs:
               app_location: '/'
-              output_location: 'dist' # Carpeta por defecto de Vite
-              skip_app_build: true # Ya está compilado en el paso anterior
-              skip_api_build: true # SWA no gestiona ninguna API aquí
+              output_location: 'dist'
+              skip_app_build: true
+              skip_api_build: true
               azure_static_web_apps_api_token: $(SWA_DEPLOYMENT_TOKEN)

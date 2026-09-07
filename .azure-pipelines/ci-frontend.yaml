@@ -1,14 +1,17 @@
 # ==============================================================================
-# PIPELINE CI: FRONTEND ZYVENCORE VALENTINE
-# Propósito: compuerta de calidad pre-merge (ESLint, Vitest y compilación).
-# Se dispara EXCLUSIVAMENTE cuando se abre un Pull Request hacia ramas principales.
+# CI · COMPUERTA DE CALIDAD (Pull Requests)
+# ------------------------------------------------------------------------------
+# Se ejecuta SOLO cuando se abre o actualiza un Pull Request hacia develop,
+# staging o main. No despliega nada y no carga ningún Variable Group: una
+# compuerta de calidad no necesita secretos. `npm run build` compila igual sin
+# la URL del backend (esa se inyecta únicamente al desplegar).
 #
-# No carga ningún variable group, y es deliberado: una compuerta de calidad no
-# necesita secretos. `npm run build` compila igual con o sin la URL del backend
-# —esa se inyecta al desplegar—, así que pedir aquí un grupo de variables solo
-# añadiría una forma de que el CI falle por algo que no es la calidad del código.
+# Requisito en Azure DevOps: el repositorio vive en GitHub, así que el bloque
+# `pr:` es lo que dispara este pipeline. Si el repo estuviera en Azure Repos,
+# habría que crear además una Branch Policy > Build Validation por rama.
 # ==============================================================================
-trigger: none
+
+trigger: none   # Nunca por push. Eso es trabajo del CD.
 
 pr:
   branches:
@@ -21,28 +24,24 @@ pool:
   vmImage: 'ubuntu-latest'
 
 jobs:
-  - job: Validar_Frontend
-    displayName: 'Quality Gate: React & Vite'
-
+  - job: Quality_Gate
+    displayName: 'Quality Gate · React + Vite'
     steps:
-      # vitest@5 declara `engines: ^22.12 || ^24 || >=26`. Con la 20 el paso de
-      # pruebas no arranca; la 24 es además la que se usa en desarrollo.
+      # vitest@5 declara engines ^22.12 || ^24 || >=26. Con Node 20 el paso
+      # de pruebas ni arranca. La 24 es además la usada en desarrollo.
       - task: NodeTool@0
+        displayName: 'Node.js 24'
         inputs:
           versionSpec: '24.x'
-        displayName: 'Instalar Node.js 24'
 
       - script: npm ci
-        displayName: 'Instalar dependencias exactas'
+        displayName: 'npm ci'
 
-      # No es redundante con el build: las reglas de react-hooks (leer un ref
-      # durante el render, dependencias de efectos) no son errores de tipo y
-      # `tsc -b` las deja pasar sin decir nada.
       - script: npm run lint
-        displayName: 'Quality Gate: ESLint'
+        displayName: 'ESLint'
 
       - script: npm run test
-        displayName: 'Quality Gate: Pruebas unitarias (Vitest)'
+        displayName: 'Vitest'
 
       - script: npm run build
-        displayName: 'Quality Gate: Compilación (tsc + vite)'
+        displayName: 'Build de prueba (tsc + vite)'
