@@ -142,14 +142,16 @@ stages:
               echo "Contenido de dist/:"; ls -la dist
             displayName: 'Verificar artefacto dist/'
 
-          # skip_app_build: true  -> la tarea NO invoca Oryx; sube dist/ tal cual.
-          # app_location: '/'     -> raíz del repo (donde está dist/).
-          # output_location: dist -> carpeta compilada que se publica.
+          # Documentación oficial (Build configuration > "Skip building front-end
+          # app"): con skip_app_build: true, app_location ES la carpeta ya
+          # compilada que se sube, y output_location debe quedar en ''.
+          # Con app_location: '/' se habría subido el repo entero (node_modules
+          # incluido) en cuanto la autenticación pasara.
           - task: AzureStaticWebApp@0
             displayName: 'Publicar en Azure Static Web Apps'
             inputs:
-              app_location: '/'
-              output_location: 'dist'
+              app_location: 'dist'
+              output_location: ''
               skip_app_build: true
               skip_api_build: true
               azure_static_web_apps_api_token: $(SWA_DEPLOYMENT_TOKEN)
