@@ -1,5 +1,4 @@
 # ==============================================================================
-# v0.1.0-dev-alpha
 # PIPELINE CD: FRONTEND ZYVENCORE VALENTINE
 # Propósito: compilar y publicar en Azure Static Web Apps.
 # Se dispara EXCLUSIVAMENTE tras un merge (o push) a ramas principales.
@@ -10,32 +9,40 @@ trigger:
       - develop
       - staging
       - main
-      - fixci # <- Incluimos tu rama para poder depurar
+      - fixci # <- Añadida tu rama efímera para permitir el trigger directo
 
 pr: none
 
 pool:
   vmImage: 'ubuntu-latest'
 
-# Inyectamos el grupo DIRECTAMENTE en la raíz. 
-# Esto evita el error de "grupo vacío" en tiempo de compilación.
 variables:
+  # Evaluamos la rama, inyectamos el grupo y definimos ENTORNO para el script de debug
   - ${{ if eq(variables['Build.SourceBranchName'], 'develop') }}:
     - group: 'VG-ZV-DEV'
+    - name: ENTORNO
+      value: 'VG-ZV-DEV'
   - ${{ if eq(variables['Build.SourceBranchName'], 'staging') }}:
     - group: 'VG-ZV-STG'
+    - name: ENTORNO
+      value: 'VG-ZV-STG'
   - ${{ if eq(variables['Build.SourceBranchName'], 'main') }}:
     - group: 'VG-ZV-MAIN'
+    - name: ENTORNO
+      value: 'VG-ZV-MAIN'
+      
+  # --- TRAMPA TEMPORAL PARA DEBUGUEAR DESDE fixci ---
+  # Si corres el pipeline desde tu rama fixci, fuerza el entorno DEV para probar
   - ${{ if eq(variables['Build.SourceBranchName'], 'fixci') }}:
-    - group: 'VG-ZV-DEV' # <- Usamos el grupo DEV para probar en tu rama
+    - group: 'VG-ZV-DEV'
+    - name: ENTORNO
+      value: 'VG-ZV-DEV'
 
 stages:
   - stage: Deploy_Web
     displayName: 'Despliegue a Azure Static Web Apps'
     jobs:
       - job: Compilar_y_Desplegar
-        # IMPORTANTE: Se eliminó el bloque 'variables' que estaba aquí adentro.
-
         steps:
           - task: NodeTool@0
             inputs:
@@ -53,11 +60,33 @@ stages:
             env:
               VITE_API_BASE_URL: $(DEPLOYED_BACKEND)
 
+          # --- PASO DE DEPURACIÓN INYECTADO AQUÍ ---
+          # Si el token no llega, el síntoma es un "BadRequest / No matching
+          # Static Web App was found or the api key was invalid" del servidor de
+          # contenido: suena a problema de Azure y casi siempre es una variable
+          # que no se resolvió. Esto lo dice antes y sin filtrar el valor —solo
+          # la longitud—, e imprime de qué grupo salió, que es el otro dato que
+          # se necesita cuando hay un variable group por rama.
+          - script: |
+              echo "Rama: $(Build.SourceBranchName) -> grupo de variables: $(ENTORNO)"
+              if [ -z "$SWA_TOKEN" ]; then
+                echo "##vso[task.logissue type=error]SWA_DEPLOYMENT_TOKEN llegó vacía. Revisa que el grupo $(ENTORNO) esté enlazado a este pipeline y que la variable exista con ese nombre exacto."
+                exit 1
+              fi
+              if [ ${#SWA_TOKEN} -lt 30 ]; then
+                echo "##vso[task.logissue type=error]SWA_DEPLOYMENT_TOKEN mide ${#SWA_TOKEN} caracteres. Eso no es un token: o es el literal sin expandir, o el valor quedó truncado."
+                exit 1
+              fi
+              echo "Token recibido: ${#SWA_TOKEN} caracteres."
+            displayName: 'Comprobar el token antes de desplegar'
+            env:
+              SWA_TOKEN: $(SWA_DEPLOYMENT_TOKEN)
+
           - task: AzureStaticWebApp@0
             displayName: 'CD: Publicar en Azure SWA'
             inputs:
               app_location: '/'
-              output_location: 'dist'
+              output_location: 'dist' # Carpeta por defecto de Vite
               skip_app_build: true 
               skip_api_build: true 
               azure_static_web_apps_api_token: $(SWA_DEPLOYMENT_TOKEN)
