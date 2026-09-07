@@ -75,9 +75,18 @@ stages:
                 exit 1
               fi
 
-              LITERAL_TOKEN='$(SWA_DEPLOYMENT_TOKEN)'
-              if [ -z "${SWA_TOKEN:-}" ] || [ "$SWA_TOKEN" = "$LITERAL_TOKEN" ]; then
-                echo "##vso[task.logissue type=error]SWA_DEPLOYMENT_TOKEN no se expandió. El Variable Group del entorno '$TARGET_ENV' no está enlazado/autorizado para este pipeline, o la variable no existe con ese nombre exacto."
+              # OJO: no escribir aquí un macro completo (dólar + paréntesis + nombre). ADO expande los
+              # macros DENTRO del script antes de ejecutarlo, así que un literal
+              # de comparación se convertiría en el propio token y el guardia
+              # fallaría siempre. Se detecta el macro sin expandir por su prefijo,
+              # construido en dos trozos para que ADO no lo reconozca.
+              MACRO_PREFIX='$''('
+              if [ -z "${SWA_TOKEN:-}" ]; then
+                echo "##vso[task.logissue type=error]SWA_DEPLOYMENT_TOKEN llegó VACÍA. La variable existe en el grupo del entorno '$TARGET_ENV' pero sin valor, o una variable del mismo nombre en la pestaña Variables del pipeline la está pisando con un valor vacío."
+                exit 1
+              fi
+              if [ "${SWA_TOKEN:0:2}" = "$MACRO_PREFIX" ]; then
+                echo "##vso[task.logissue type=error]SWA_DEPLOYMENT_TOKEN no se expandió (llegó el macro literal). El grupo del entorno '$TARGET_ENV' no contiene una variable con ese nombre exacto."
                 exit 1
               fi
 
@@ -92,8 +101,7 @@ stages:
                 exit 1
               fi
 
-              LITERAL_BACKEND='$(DEPLOYED_BACKEND)'
-              if [ -z "${BACKEND:-}" ] || [ "$BACKEND" = "$LITERAL_BACKEND" ]; then
+              if [ -z "${BACKEND:-}" ] || [ "${BACKEND:0:2}" = "$MACRO_PREFIX" ]; then
                 echo "##vso[task.logissue type=error]DEPLOYED_BACKEND no se expandió o está vacía en el Variable Group del entorno '$TARGET_ENV'."
                 exit 1
               fi
