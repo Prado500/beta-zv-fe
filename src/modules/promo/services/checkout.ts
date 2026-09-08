@@ -42,11 +42,27 @@ export interface Credentials {
   name: string;
 }
 
-/** Mínimo que exige el backend (`Register.password`); validarlo aquí evita un 422. */
-export const MIN_PASSWORD = 12;
+/**
+ * Rango que exige el backend en `Register.password` (`be/app/schemas/auth.py`).
+ *
+ * Son espejo, no una opinión de esta pantalla: si aquí se pide más de lo que
+ * allí se acepta, el formulario deja pasar contraseñas que el servidor devuelve
+ * con un 422 y la persona no entiende por qué. No hay ninguna otra regla —ni
+ * mayúsculas, ni dígitos, ni símbolos— a propósito: se quieren contraseñas que
+ * se recuerden.
+ */
+export const MIN_PASSWORD = 4;
+export const MAX_PASSWORD = 10;
 
-export const register = (credentials: Credentials): Promise<UserResponse> =>
-  apiPost<UserResponse>('/api/v1/auth/register', credentials);
+/**
+ * Alta de la cuenta.
+ *
+ * El cuerpo se arma campo a campo y no se reenvía el objeto del formulario tal
+ * cual: `Register` declara `extra="forbid"`, así que cualquier campo de más
+ * —`confirmPassword`, sin ir más lejos— tumbaría la petición con un 422.
+ */
+export const register = ({ name, email, password }: Credentials): Promise<UserResponse> =>
+  apiPost<UserResponse>('/api/v1/auth/register', { name, email, password });
 
 export const login = (email: string, password: string): Promise<UserResponse> =>
   apiPost<UserResponse>('/api/v1/auth/login', { email, password });

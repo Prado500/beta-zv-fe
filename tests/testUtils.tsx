@@ -10,8 +10,15 @@ import { MemoryRouter } from 'react-router-dom';
  * espera, que es lo que hace una persona.
  */
 
-/** `delay: null` quita la pausa entre teclas; con validación en vivo se nota. */
-export const setupUser = () => userEvent.setup({ delay: null });
+/**
+ * `delay: null` quita la pausa entre teclas; con validación en vivo se nota.
+ *
+ * `options` existe para las pruebas que congelan el reloj: `userEvent` programa
+ * sus propios temporizadores y, con `vi.useFakeTimers()`, hay que pasarle
+ * `advanceTimers` o cada pulsación se queda esperando un tiempo que no avanza.
+ */
+export const setupUser = (options: Parameters<typeof userEvent.setup>[0] = {}) =>
+  userEvent.setup({ delay: null, ...options });
 
 /**
  * Monta un componente dentro de un router de memoria.

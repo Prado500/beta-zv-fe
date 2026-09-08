@@ -1,16 +1,22 @@
 import React, { useEffect } from 'react';
 import { useCheckoutFlow } from '../../hooks/useCheckoutFlow';
-import { MIN_PASSWORD } from '../../services/checkout';
+import { AccountStep } from './steps/AccountStep';
+import { EmailConfirmStep } from './steps/EmailConfirmStep';
+import { PasswordStep } from './steps/PasswordStep';
 import { Ornament, CornerFlourish } from '../../../../components/decor';
-import { FieldError } from '../../../../components/ui/FieldError';
-import { fieldClass, fieldTone, HINT, LABEL } from '../../../../components/ui/formStyles';
 
 /**
  * Puerta de entrada a la compra: crear la cuenta y salir hacia Mercado Pago.
  *
- * Este componente no habla con la API. Pinta lo que `useCheckoutFlow` le dice y
- * le devuelve los eventos; toda la secuencia —registro, sesión, intención de
- * compra y redirección— vive en el hook (View / ViewModel).
+ * Este componente no habla con la API ni valida nada. Es la cáscara —overlay,
+ * cierre, foco, título— y decide qué paso se pinta; la secuencia entera
+ * —registro, sesión, intención de compra y redirección— vive en
+ * `useCheckoutFlow` (View / ViewModel).
+ *
+ * El alta va en tres tramos y no en un solo formulario porque el correo se
+ * confirma en medio: ver "nombre, correo y contraseña" de golpe invita a
+ * rellenar los tres sin mirar, y el correo es el único que no tiene arreglo
+ * después.
  *
  * Ya no existe el botón de "simular pago". El pago ocurre fuera, en la pasarela,
  * y se confirma a la vuelta en `/pago/retorno` contra el servidor: esta pantalla
@@ -22,23 +28,33 @@ interface PurchaseModalProps {
   onClose: () => void;
 }
 
-export const PurchaseModal: React.FC<PurchaseModalProps> = ({ open, onClose }) => {
-  const { form, status, busy, error, submit, reset } = useCheckoutFlow();
-  const {
-    register,
-    setFocus,
-    formState: { errors, dirtyFields },
-  } = form;
+/** Título y subtítulo de cada tramo: el encabezado dice dónde está la persona. */
+const HEADINGS = {
+  account: { lead: 'Crea tu', accent: 'cuenta' },
+  'confirm-email': { lead: 'Confirma tu', accent: 'correo' },
+  password: { lead: 'Elige tu', accent: 'contraseña' },
+} as const;
 
-  // Cada apertura empieza limpia: ni el error de ayer ni la clave de idempotencia
-  // del intento anterior deberían sobrevivir a cerrar el modal.
+export const PurchaseModal: React.FC<PurchaseModalProps> = ({ open, onClose }) => {
+  const { form, step, status, busy, error, next, confirmEmail, back, submit, reset } =
+    useCheckoutFlow();
+  const { setFocus } = form;
+
+  // Cada apertura empieza limpia: ni el error de ayer, ni el paso en el que se
+  // quedó, ni la clave de idempotencia del intento anterior deberían sobrevivir
+  // a cerrar el modal.
   useEffect(() => {
     if (!open) reset();
   }, [open, reset]);
 
+  // El foco viaja con el paso; si no, tras avanzar se queda en un botón que ya
+  // no existe y quien navega con teclado vuelve al principio del documento.
   useEffect(() => {
-    if (open) setFocus('name');
-  }, [open, setFocus]);
+    if (!open) return;
+    if (step === 'account') setFocus('name');
+    else if (step === 'confirm-email') setFocus('email');
+    else setFocus('password');
+  }, [open, step, setFocus]);
 
   useEffect(() => {
     if (!open) return;
@@ -51,8 +67,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({ open, onClose }) =
 
   if (!open) return null;
 
-  const tone = (field: 'name' | 'email' | 'password') =>
-    fieldTone(Boolean(errors[field]), Boolean(dirtyFields[field]));
+  const heading = HEADINGS[step];
 
   return (
     <div
@@ -82,89 +97,32 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({ open, onClose }) =
 
         <div className="text-center mb-5">
           <h2 id="purchase-title" className="font-headline-md text-xl font-bold text-on-background">
-            Crea tu{' '}
+            {heading.lead}{' '}
             <span className="font-script font-normal text-wine text-[1.6em] leading-none">
-              cuenta
+              {heading.accent}
             </span>
           </h2>
           <Ornament tone="gold" width={140} className="mx-auto mt-1" />
         </div>
 
-        <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-          <div>
-            <label className={LABEL} htmlFor="buy-name">
-              Tu nombre
-            </label>
-            <input
-              id="buy-name"
-              {...register('name')}
-              maxLength={120}
-              autoComplete="name"
-              placeholder="Sebastián"
-              aria-invalid={Boolean(errors.name)}
-              aria-describedby={errors.name ? 'buy-name-error' : undefined}
-              className={fieldClass(tone('name'))}
-            />
-            <FieldError id="buy-name-error" message={errors.name?.message} />
-          </div>
-
-          <div>
-            <label className={LABEL} htmlFor="buy-email">
-              Tu correo
-            </label>
-            <input
-              id="buy-email"
-              type="email"
-              {...register('email')}
-              autoComplete="email"
-              placeholder="tucorreo@ejemplo.com"
-              aria-invalid={Boolean(errors.email)}
-              aria-describedby={errors.email ? 'buy-email-error' : undefined}
-              className={fieldClass(tone('email'))}
-            />
-            <FieldError id="buy-email-error" message={errors.email?.message} />
-            <p className={HINT}>
-              <span className="material-symbols-outlined text-[15px]">mail</span>
-              Aquí te llegará el enlace de tu carta cuando esté lista.
-            </p>
-          </div>
-
-          <div>
-            <label className={LABEL} htmlFor="buy-password">
-              Contraseña
-            </label>
-            <input
-              id="buy-password"
-              type="password"
-              {...register('password')}
-              maxLength={128}
-              autoComplete="new-password"
-              placeholder={`Mínimo ${MIN_PASSWORD} caracteres`}
-              aria-invalid={Boolean(errors.password)}
-              aria-describedby={errors.password ? 'buy-password-error' : undefined}
-              className={fieldClass(tone('password'))}
-            />
-            <FieldError id="buy-password-error" message={errors.password?.message} />
-          </div>
-
-          <button
-            type="submit"
-            disabled={busy}
-            className="mt-1 w-full py-3.5 rounded-full bg-wine text-white font-semibold text-sm shadow-lg hover:bg-primary transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:cursor-wait disabled:opacity-70"
-          >
-            {status === 'redirecting'
-              ? 'Abriendo Mercado Pago…'
-              : status === 'creating'
-                ? 'Creando tu compra…'
-                : 'Continuar al pago'}
-            <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-          </button>
-
-          <p className="text-xs text-wine/60 leading-relaxed text-center">
-            Te llevamos al checkout seguro de Mercado Pago. Al volver, el pago lo confirma
-            nuestro servidor: nadie desbloquea la carta desde el navegador.
-          </p>
-        </form>
+        {/*
+          Cada paso monta su propio `<form>`: así el Enter hace en cada pantalla
+          lo que hace su botón —avanzar, confirmar o enviar— en vez de disparar
+          siempre el submit del final.
+        */}
+        {step === 'account' && <AccountStep form={form} onNext={next} />}
+        {step === 'confirm-email' && (
+          <EmailConfirmStep form={form} onConfirm={confirmEmail} onBack={back} />
+        )}
+        {step === 'password' && (
+          <PasswordStep
+            form={form}
+            status={status}
+            busy={busy}
+            onSubmit={submit}
+            onBack={back}
+          />
+        )}
 
         {error && (
           <p className="text-sm text-error font-medium text-center mt-4" role="alert">
