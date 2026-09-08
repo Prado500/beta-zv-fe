@@ -437,8 +437,18 @@ export default function EditorPage() {
                 >
                   <span className="material-symbols-outlined text-sm">arrow_back</span> Atrás
                 </button>
+                {/*
+                  Las `key` no son decoración. Sin ellas React ve dos <button> en la
+                  misma posición, reutiliza el nodo y le cambia el `type` a "submit"
+                  mientras el navegador todavía está resolviendo el clic: la activación
+                  se ejecuta después del despacho del evento, encuentra un botón de
+                  envío y manda el formulario. Pulsar "Siguiente" en el paso 2 avanzaba
+                  al 3 y, de paso, abría la confirmación del correo. Con identidades
+                  distintas el botón pulsado se destruye y ya no hay nada que enviar.
+                */}
                 {step < LAST_STEP ? (
                   <button
+                    key="wizard-next"
                     type="button"
                     onClick={() => goTo(step + 1)}
                     className="px-7 py-3 rounded-full bg-wine text-white font-semibold text-sm shadow-[0_10px_24px_-10px_rgba(140,17,40,0.8)] flex items-center gap-1.5 hover:bg-primary hover:-translate-y-0.5 transition-all cursor-pointer"
@@ -447,6 +457,7 @@ export default function EditorPage() {
                   </button>
                 ) : (
                   <button
+                    key="wizard-submit"
                     type="submit"
                     disabled={!canSubmit}
                     className="relative group cursor-pointer disabled:cursor-wait"
