@@ -53,6 +53,28 @@ describe('EditorPage · asistente por pasos', () => {
     expect(createLetter).not.toHaveBeenCalled();
   });
 
+  it('al pasar al 3, el botón "Siguiente" se destruye en vez de volverse el de envío', async () => {
+    const user = setupUser();
+    renderEditor();
+    await fillStepOne(user);
+    await goToStepTwo(user);
+
+    // Identidad del nodo, no apariencia. Si React reutilizara el mismo <button>
+    // y solo le cambiara el `type` a "submit", en un navegador real la activación
+    // del clic —que se resuelve después del despacho del evento— encontraría un
+    // botón de envío y mandaría el formulario: el paso avanzaría y la
+    // confirmación del correo se abriría con él. jsdom no reproduce ese orden,
+    // así que aquí se comprueba la causa y no el síntoma.
+    const clicked = nextButton();
+    await user.click(clicked);
+
+    expect(stepBadge(3)).toBeTruthy();
+    expect(document.body.contains(clicked)).toBe(false);
+    expect(submitButton()).not.toBe(clicked);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(createLetter).not.toHaveBeenCalled();
+  });
+
   it('con un nombre inválido avanza igual, deja el campo marcado y no abre nada', async () => {
     const user = setupUser();
     renderEditor();
