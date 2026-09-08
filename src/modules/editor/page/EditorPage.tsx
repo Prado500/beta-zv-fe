@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { THEME_PRESETS, type DedicationForm } from '../types';
 import { PhonePreview } from '../components/PhonePreview';
@@ -23,6 +23,9 @@ import { fieldClass, fieldTone, HINT, LABEL } from '../../../components/ui/formS
 interface EditorState {
   purchaseId?: string;
 }
+
+/** Último paso del asistente: el único en el que existe el envío. */
+const LAST_STEP = 3;
 
 export default function EditorPage() {
   const location = useLocation();
@@ -72,6 +75,22 @@ export default function EditorPage() {
     setStep(next);
   };
 
+  /**
+   * Un `submit` antes del último paso no es "enviar": es el navegador enviando
+   * el formulario solo al pulsar Intro (envío implícito). En el paso 2 hay un
+   * único campo de texto y ningún botón de envío, y en ese caso el HTML dispara
+   * `submit` sin que nadie lo pida. Se trata como "Siguiente"; la confirmación
+   * del correo solo puede abrirse en el último paso.
+   */
+  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+    if (step >= LAST_STEP) {
+      requestSubmit(event);
+      return;
+    }
+    event.preventDefault();
+    goTo(step + 1);
+  };
+
   const onPickFiles = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     // Permite volver a elegir el mismo archivo tras quitarlo.
@@ -97,7 +116,7 @@ export default function EditorPage() {
           </Link>
           <div className="flex items-center gap-4">
             <span className="text-xs font-semibold text-wine/70 hidden sm:inline-flex items-center gap-1.5 bg-blush/60 px-3 py-1.5 rounded-full ring-1 ring-wine/10">
-              Paso {step} de 3
+              Paso {step} de {LAST_STEP}
             </span>
             <Link to="/" className="text-xs font-semibold text-wine hover:text-primary transition-colors flex items-center gap-1">
               <span className="material-symbols-outlined text-sm">close</span> Salir
@@ -172,7 +191,7 @@ export default function EditorPage() {
             </div>
 
             <form
-              onSubmit={requestSubmit}
+              onSubmit={onSubmit}
               noValidate
               className="relative bg-white rounded-4xl shadow-[0_24px_50px_-24px_rgba(94,10,27,0.35)] border border-wine/12 p-6 md:p-8 flex flex-col gap-5 overflow-hidden"
             >
@@ -418,7 +437,7 @@ export default function EditorPage() {
                 >
                   <span className="material-symbols-outlined text-sm">arrow_back</span> Atrás
                 </button>
-                {step < 3 ? (
+                {step < LAST_STEP ? (
                   <button
                     type="button"
                     onClick={() => goTo(step + 1)}

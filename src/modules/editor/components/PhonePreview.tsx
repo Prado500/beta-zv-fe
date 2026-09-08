@@ -988,8 +988,13 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ data, isFullView = f
 
   if (isFullView) {
     return (
-      <div className="w-full min-h-screen bg-neutral-900 flex justify-center items-center p-0 md:p-6">
-        <div className="w-full max-w-md md:max-w-lg min-h-screen md:min-h-[85vh] md:rounded-4xl shadow-2xl overflow-hidden flex flex-col bg-white relative">
+      <div className="w-full min-h-dvh bg-neutral-900 flex justify-center items-center p-0 md:p-6">
+        {/*
+          Altura DEFINIDA, no mínima: la hoja usa `h-full` y todo su contenido
+          es `absolute`; con `min-h-*` el porcentaje no resuelve, la hoja mide
+          0 px y el visor se ve como una caja blanca vacía.
+        */}
+        <div className="w-full max-w-md md:max-w-lg h-dvh md:h-[85vh] md:rounded-4xl shadow-2xl overflow-hidden flex flex-col bg-white relative">
           {renderCardBody()}
         </div>
       </div>

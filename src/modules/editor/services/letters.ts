@@ -35,6 +35,7 @@ export interface LetterCreated {
   id?: string;
   publicSlug?: string;
   publicUrl?: string;
+  /** Lo construye el backend sobre FRONTEND_URL; no se usa, ver `qrUrlOf`. */
   qrUrl?: string;
   message?: string;
 }
@@ -81,10 +82,32 @@ export const composeBody = (form: DedicationForm): string => {
 export const uploadedPhotos = (photos: PhotoUpload[]): PhotoUpload[] =>
   photos.filter((photo) => photo.status === 'ready' && photo.tempId);
 
-/** Una ruta relativa del backend necesita su origen para poder pintarse. */
-const absolute = (url: string | undefined): string | null => {
-  if (!url) return null;
-  return url.startsWith('/') ? apiUrl(url) : url;
+/**
+ * Slug público de la carta: viene en `publicSlug` o, si solo llega el enlace,
+ * dentro de `publicUrl` (`.../carta/<slug>`).
+ */
+const slugOf = (data: LetterCreated): string | null => {
+  if (data.publicSlug) return data.publicSlug;
+  const match = data.publicUrl?.match(/\/carta\/([^/?#]+)/);
+  return match?.[1] ?? null;
+};
+
+/** Ruta del QR público de una carta, sin sesión. */
+export const publicQrPath = (slug: string): string =>
+  `/api/v1/public/letters/${encodeURIComponent(slug)}/qr.png`;
+
+/**
+ * QR de la carta: siempre el endpoint público por `slug`, vía `apiUrl`.
+ *
+ * El `qrUrl` del backend se ignora a propósito: lo construye sobre FRONTEND_URL
+ * (el origen del frontend, donde no existe `/api`) y apunta al endpoint
+ * autenticado, que un `<img>` no puede llamar entre orígenes porque el
+ * navegador no adjunta la cookie de sesión. Sin slug se devuelve `null` y el
+ * modal dibuja el QR en el navegador.
+ */
+const qrUrlOf = (data: LetterCreated): string | null => {
+  const slug = slugOf(data);
+  return slug ? apiUrl(publicQrPath(slug)) : null;
 };
 
 /**
@@ -136,7 +159,7 @@ export const createLetter = async (
   return {
     mode: 'ready',
     publicUrl,
-    qrUrl: absolute(data?.qrUrl),
+    qrUrl: qrUrlOf(data ?? {}),
     message: data?.message || '',
   };
 };
