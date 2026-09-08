@@ -10,8 +10,9 @@ import type { DedicationForm } from '../types';
  * modo asíncrono la respuesta es `202` y quien se muestra es `QueuedModal`: esa
  * decisión la toma el código de estado, no esta pantalla.
  *
- * El QR es el del servidor cuando lo manda; si no, se dibuja en el navegador con
- * el tema elegido. En los dos casos apunta al mismo enlace público.
+ * El QR es el del servidor cuando hay enlace público; si no lo hay, o la imagen
+ * no carga, se dibuja en el navegador con el tema elegido. En los dos casos
+ * apunta al mismo enlace público.
  */
 
 interface SuccessModalProps {
@@ -34,6 +35,8 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
   onClose,
 }) => {
   const [copied, setCopied] = useState(false);
+  /** La imagen del servidor no cargó: se dibuja el QR en el navegador. */
+  const [qrFailed, setQrFailed] = useState(false);
   const closeButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -117,10 +120,11 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
           </div>
 
           <div className="mt-7">
-            {qrUrl ? (
+            {qrUrl && !qrFailed ? (
               <img
                 src={qrUrl}
                 alt="Código QR de la carta"
+                onError={() => setQrFailed(true)}
                 className="w-56 h-56 mx-auto rounded-2xl ring-1 ring-wine/15 bg-white p-2"
               />
             ) : (
