@@ -6,7 +6,7 @@ import { resolvePalette } from '../themePalette';
 import { decorFor } from '../themeDecor';
 import { giftsFor } from '../themeGifts';
 import { buildDocument } from './templates/document';
-import { getYouTubeId } from './youtube';
+import { getYouTubeId } from '../youtube';
 
 const FALLBACK = {
   title: 'Una Carta Especial',

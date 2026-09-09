@@ -1,5 +1,7 @@
 import React from 'react';
 import { Ornament, CornerFlourish, HeartConfetti, Bow, PhotoFrame } from '../../../../components/decor';
+import { YouTubeFacade } from '../../../../components/media/YouTubeFacade';
+import { LANDING_VIDEOS } from '../../../../config/videos';
 
 interface PricingProps {
   /** Abre el flujo de compra. La landing es quien monta el modal. */
@@ -19,11 +21,7 @@ export const Pricing: React.FC<PricingProps> = ({ onBuy }) => {
           {/* Video 6 (Paralelo al precio) */}
           <PhotoFrame caption="el último empujón" tilt={-2} tape="left" className="lg:order-1">
             <div className="aspect-video">
-              <iframe
-                src="https://www.youtube.com/embed/TU_VIDEO_ID_6"
-                title="Video 6 Cierre"
-                className="w-full h-full border-0"
-              ></iframe>
+              <YouTubeFacade videoId={LANDING_VIDEOS.closing} title="Video 6 Cierre" />
             </div>
           </PhotoFrame>
 

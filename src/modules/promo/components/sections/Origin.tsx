@@ -1,6 +1,8 @@
 import React from 'react';
 import { Ornament, CornerFlourish, HeartConfetti } from '../../../../components/decor';
 import { FlowerShowcase } from './FlowerShowcase';
+import { YouTubeFacade } from '../../../../components/media/YouTubeFacade';
+import { LANDING_VIDEOS } from '../../../../config/videos';
 
 export const Origin: React.FC = () => {
   return (
@@ -16,11 +18,7 @@ export const Origin: React.FC = () => {
             <CornerFlourish corner="tl" tone="gold" size={56} placement="-top-3 -left-3" className="z-10 opacity-80" />
             <CornerFlourish corner="br" tone="gold" size={56} placement="-bottom-3 -right-3" className="z-10 opacity-80" />
             <div className="w-full aspect-video bg-surface-container-lowest rounded-3xl shadow-xl overflow-hidden ambient-shadow-lg ring-1 ring-outline-variant/30">
-            <iframe 
-              src="https://www.youtube.com/embed/TU_VIDEO_ID_2" 
-              title="Video 2 Origen"
-              className="w-full h-full border-0"
-            ></iframe>
+            <YouTubeFacade videoId={LANDING_VIDEOS.origin} title="Video 2 Origen" />
             </div>
           </div>
 
