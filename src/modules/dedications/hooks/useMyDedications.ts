@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError } from '../../../utils/api';
 import { describeError } from '../../../utils/apiErrors';
+import { useAuth } from '../../auth/useAuth';
 import { listDedications, type Dedication } from '../services/dedications';
 
 /**
@@ -16,6 +17,10 @@ import { listDedications, type Dedication } from '../services/dedications';
  * tenemos los datos; si dice 401, se abre la puerta de inicio de sesión. Un
  * `GET /me` previo costaría una ida y vuelta más en cada visita y, aun así, el
  * listado tendría que tratar el 401 de una sesión caducada a medio uso.
+ *
+ * Lo que sí se hace con ese 401 es contárselo al estado global: si el panel
+ * sabe que la sesión murió, la cabecera de la landing no debe seguir enseñando
+ * un avatar al volver.
  */
 
 export type PanelStatus = 'loading' | 'ready' | 'unauthenticated' | 'error';
@@ -34,6 +39,7 @@ export interface MyDedications {
 }
 
 export const useMyDedications = (): MyDedications => {
+  const { clear } = useAuth();
   const [status, setStatus] = useState<PanelStatus>('loading');
   const [items, setItems] = useState<Dedication[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +61,7 @@ export const useMyDedications = (): MyDedications => {
       .catch((problem: unknown) => {
         if (problem instanceof DOMException && problem.name === 'AbortError') return;
         if (problem instanceof ApiError && problem.status === 401) {
+          clear();
           setItems([]);
           setStatus('unauthenticated');
           return;
@@ -64,7 +71,7 @@ export const useMyDedications = (): MyDedications => {
       });
 
     return () => controller.abort();
-  }, [attempt]);
+  }, [attempt, clear]);
 
   const reload = useCallback(() => {
     setError(null);

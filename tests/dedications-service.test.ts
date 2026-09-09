@@ -7,7 +7,7 @@ import {
   resendDelivery,
   viewerPathFor,
 } from '../src/modules/dedications/services/dedications';
-import { logout } from '../src/modules/promo/services/checkout';
+import { logout } from '../src/modules/auth/services/auth';
 
 /**
  * Servicios del panel: que cada función hable con la ruta correcta y con el

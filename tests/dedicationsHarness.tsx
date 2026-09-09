@@ -1,5 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { ANONYMOUS, type AuthSnapshot } from '../src/modules/auth/AuthContext';
+import { AuthProvider } from '../src/modules/auth/AuthProvider';
 import MyDedicationsPage from '../src/modules/dedications/page/MyDedicationsPage';
 import type { Dedication } from '../src/modules/dedications/services/dedications';
 import { EditorStub } from './EditorStub';
@@ -55,14 +57,20 @@ export const PUBLISHED: Dedication = {
   updatedAt: '2026-09-07T18:09:12.774Z',
 };
 
-/** Monta el panel en su ruta, con el editor de mentira al lado para poder llegar a él. */
-export const renderPanel = () =>
+/**
+ * Monta el panel en su ruta, con el editor de mentira al lado para poder llegar
+ * a él. La sesión que la app cree tener al montar se puede fijar; el panel no
+ * la usa para decidir nada —su sonda es el listado—, pero sí la actualiza.
+ */
+export const renderPanel = (auth: AuthSnapshot = ANONYMOUS) =>
   render(
     <MemoryRouter initialEntries={['/mis-dedicatorias']}>
-      <Routes>
-        <Route path="/mis-dedicatorias" element={<MyDedicationsPage />} />
-        <Route path="/editor" element={<EditorStub />} />
-      </Routes>
+      <AuthProvider initial={auth}>
+        <Routes>
+          <Route path="/mis-dedicatorias" element={<MyDedicationsPage />} />
+          <Route path="/editor" element={<EditorStub />} />
+        </Routes>
+      </AuthProvider>
     </MemoryRouter>,
   );
 

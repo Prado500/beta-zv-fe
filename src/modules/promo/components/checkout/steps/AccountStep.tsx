@@ -9,14 +9,20 @@ import { fieldClass, fieldTone, HINT, LABEL } from '../../../../../components/ui
  *
  * Pinta y devuelve eventos, nada más. Ni valida ni decide cuándo se avanza: eso
  * lo resuelve `useCheckoutFlow`, que es quien sabe qué campos tiene este paso.
+ *
+ * El enlace de "¿Ya tienes cuenta?" va aquí y solo aquí, a la vista desde el
+ * primer segundo: la detección silenciosa de "este correo ya existe" al escribir
+ * pasa desapercibida cuando hay más campos que mirar. Un recurrente tiene que
+ * poder salir de este formulario antes de rellenar nada.
  */
 
 interface AccountStepProps {
   form: UseFormReturn<CheckoutInput, unknown, CheckoutValues>;
   onNext: () => void;
+  onSwitchToLogin: () => void;
 }
 
-export const AccountStep: React.FC<AccountStepProps> = ({ form, onNext }) => {
+export const AccountStep: React.FC<AccountStepProps> = ({ form, onNext, onSwitchToLogin }) => {
   const {
     register,
     formState: { errors, dirtyFields },
@@ -81,6 +87,17 @@ export const AccountStep: React.FC<AccountStepProps> = ({ form, onNext }) => {
         Siguiente
         <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
       </button>
+
+      <p className="text-sm text-on-surface-variant text-center">
+        ¿Ya tienes cuenta?{' '}
+        <button
+          type="button"
+          onClick={onSwitchToLogin}
+          className="font-semibold text-wine underline underline-offset-4 decoration-wine/40 hover:text-primary hover:decoration-primary transition-colors cursor-pointer"
+        >
+          Inicia sesión
+        </button>
+      </p>
     </form>
   );
 };

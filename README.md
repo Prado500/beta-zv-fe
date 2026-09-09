@@ -25,6 +25,18 @@ manejan cookies y CSRF:
 
 * **Sesión.** Cookie `HttpOnly` del backend. Cada llamada usa `credentials: 'include'`;
   no hay ningún token en `localStorage` ni en el estado de React.
+* **Estado de sesión en el cliente.** `src/modules/auth/AuthProvider.tsx` es la única
+  fuente de verdad: `useAuth()` devuelve `unknown | anonymous | authenticated` y el
+  usuario de `GET /api/v1/me`. Como la cookie no se puede leer, la sonda a `/me` solo
+  se lanza al cargar si hay una pista en `localStorage` (`auth:signedInAt`), escrita al
+  entrar o registrarse y borrada al salir o ante un 401. No es una autorización: sin
+  pista no hay petición, y un visitante anónimo no cuesta una lectura.
+* **Compra con sesión.** `PurchaseModal` decide su paso inicial con ese estado: con
+  sesión salta al paso exprés y crea la compra sin pedir datos; sin sesión ofrece alta
+  o entrada ("¿Ya tienes cuenta? Inicia sesión"). Un 401 al crear la compra vuelve a
+  pedir la contraseña ahí mismo y retoma la misma compra con la misma clave de
+  idempotencia. La sesión del backend caduca a los `SESSION_MINUTES` fijos (30 por
+  defecto) y no se renueva con la actividad.
 * **CSRF.** `apiFetch` pide `GET /api/v1/auth/csrf` la primera vez, cachea el token y
   lo manda en `X-CSRF-Token` en todo POST/PUT/PATCH/DELETE. Si el servidor lo rechaza
   por caducado, lo renueva y reintenta una sola vez.
@@ -65,6 +77,8 @@ src/
 ├── assets/
 │   └── flores/             # Recursos de flores divididos por temas (1 al 4)
 ├── modules/
+│   ├── auth/               # Sesión: AuthProvider, useAuth, login/logout, menú de usuario
+│   ├── dedications/        # Panel posventa "Mis dedicatorias"
 │   ├── editor/             # Módulo del editor de tarjetas
 │   │   ├── components/     # AnimatedBackground.tsx, PhonePreview.tsx
 │   │   ├── page/           # EditorPage.tsx

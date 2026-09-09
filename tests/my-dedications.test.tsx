@@ -25,8 +25,8 @@ vi.mock('../src/modules/dedications/services/dedications', async (importOriginal
   resendDelivery: vi.fn(),
 }));
 
-vi.mock('../src/modules/promo/services/checkout', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../src/modules/promo/services/checkout')>()),
+vi.mock('../src/modules/auth/services/auth', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/modules/auth/services/auth')>()),
   login: vi.fn(),
   logout: vi.fn(),
 }));

@@ -6,7 +6,7 @@ import { QrModal } from '../components/QrModal';
 import { ResendModal } from '../components/ResendModal';
 import { SessionGate } from '../components/SessionGate';
 import { useMyDedications } from '../hooks/useMyDedications';
-import { useSignOut } from '../hooks/useSignOut';
+import { useSignOut } from '../../auth/hooks/useSignOut';
 import type { Dedication } from '../services/dedications';
 
 /**

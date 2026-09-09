@@ -36,12 +36,15 @@ Object.defineProperty(window, 'matchMedia', {
   }),
 });
 
-// El identificador de la compra vive en `sessionStorage`; que sobreviva de un
-// caso al siguiente haría que una prueba aprobara por lo que hizo la anterior.
+// El identificador de la compra vive en `sessionStorage` y la pista de sesión
+// en `localStorage`; que sobrevivan de un caso al siguiente haría que una
+// prueba aprobara por lo que hizo la anterior.
 beforeEach(() => {
   window.sessionStorage.clear();
+  window.localStorage.clear();
 });
 
 afterEach(() => {
   window.sessionStorage.clear();
+  window.localStorage.clear();
 });

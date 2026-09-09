@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { screen } from '@testing-library/react';
 import { Header } from '../src/modules/promo/components/layout/Header';
-import { setupUser } from './testUtils';
+import { renderAt, setupUser } from './testUtils';
 
 /**
  * El enlace al panel desde la landing. Es navegación de la app, no un ancla de
@@ -10,12 +9,7 @@ import { setupUser } from './testUtils';
  * a la ruta del router.
  */
 
-const renderHeader = () =>
-  render(
-    <MemoryRouter>
-      <Header />
-    </MemoryRouter>,
-  );
+const renderHeader = () => renderAt(<Header />);
 
 const panelLinks = () => screen.queryAllByRole('link', { name: 'Mis Dedicatorias' });
 
