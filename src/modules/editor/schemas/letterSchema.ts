@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { email, optionalPersonName, personName } from '../../../utils/validation';
-import { getYouTubeId } from '../../../utils/export/youtube';
+import { getYouTubeId } from '../../../utils/youtube';
 
 /**
  * Contrato de la carta, en un solo sitio.

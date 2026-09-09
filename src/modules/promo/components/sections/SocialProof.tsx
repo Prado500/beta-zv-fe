@@ -2,29 +2,31 @@ import React from 'react';
 import { Ornament, HeartConfetti } from '../../../../components/decor';
 import { ReactionPost, type Reaction } from './ReactionPost';
 import { Carousel } from '../ui/Carousel';
+import { YouTubeFacade } from '../../../../components/media/YouTubeFacade';
+import { LANDING_VIDEOS, REACTION_VIDEOS } from '../../../../config/videos';
 
-/** Reemplaza cada videoId por el de YouTube de la reacción correspondiente. */
+/** Los videos de cada reacción viven en `config/videos.ts`, junto al resto. */
 const REACTIONS: Reaction[] = [
   {
     id: 'qa',
     name: 'Control de Calidad Femenino',
     handle: '@lasqueaprueban',
     quote: 'Literal, si me regalan esto, me muero de amor.',
-    videoId: 'TU_VIDEO_ID_R1',
+    videoId: REACTION_VIDEOS.qa,
   },
   {
     id: 'andrea',
     name: 'Andrea V.',
     handle: '@andreav',
     quote: 'Es el detalle más lindo porque no es un objeto que se olvida.',
-    videoId: 'TU_VIDEO_ID_R2',
+    videoId: REACTION_VIDEOS.andrea,
   },
   {
     id: 'sofia',
     name: 'Sofía G.',
     handle: '@sofiag',
     quote: 'El QR en el portarretrato me pareció una idea genial.',
-    videoId: 'TU_VIDEO_ID_R3',
+    videoId: REACTION_VIDEOS.sofia,
   },
 ];
 
@@ -52,11 +54,7 @@ export const SocialProof: React.FC = () => {
 
             {/* Video 4 Principal (Reacciones en Grupo) */}
             <div className="max-w-3xl mx-auto aspect-video rounded-3xl overflow-hidden shadow-2xl mb-9 md:mb-12 border border-[#D4AF37]/25 ring-1 ring-white/10">
-              <iframe
-                src="https://www.youtube.com/embed/TU_VIDEO_ID_4"
-                title="Video 4 Validación"
-                className="w-full h-full border-0"
-              ></iframe>
+              <YouTubeFacade videoId={LANDING_VIDEOS.validation} title="Video 4 Validación" />
             </div>
             <p className="text-white/70 mb-8 max-w-xl mx-auto">
               Hecho de hombres para hombres, pero con el control de calidad estricto de ellas.

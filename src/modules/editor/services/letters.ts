@@ -1,5 +1,8 @@
 import { apiPostResult, apiUpload, apiUrl } from '../../../utils/api';
 import { themeSlug, type DedicationForm, type PhotoUpload } from '../types';
+import { composeBody } from './letterBody';
+
+export { composeBody } from './letterBody';
 
 /**
  * Cartas: subida anticipada de fotos y creación de la carta.
@@ -61,21 +64,6 @@ export const uploadEagerPhoto = (file: Blob, fileName: string): Promise<EagerPho
   // `apiUpload` y no `apiPostResult`: el multipart necesita que el navegador
   // ponga su propio `boundary`, y un `body` JSON lo destruiría.
   return apiUpload<EagerPhoto>('/api/v1/letters/photos/eager', form);
-};
-
-/**
- * Une el mensaje con la firma y la canción.
- *
- * `LetterCreate` en el backend no tiene campos para el remitente ni para el
- * enlace de la canción, y añadirlos exigiría una migración. Hasta entonces viajan
- * dentro del cuerpo, que es texto libre: así no se pierde lo que el usuario
- * escribió y no se provoca un 422 por campos desconocidos.
- */
-export const composeBody = (form: DedicationForm): string => {
-  const parts = [form.message.trim()];
-  if (form.sender.trim()) parts.push(`De parte de: ${form.sender.trim()}`);
-  if (form.songUrl.trim()) parts.push(`Canción: ${form.songUrl.trim()}`);
-  return parts.filter(Boolean).join('\n\n');
 };
 
 /** Fotos que el backend puede trasladar: las que ya tienen `tempId` confirmado. */

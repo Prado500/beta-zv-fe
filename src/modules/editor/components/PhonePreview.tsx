@@ -5,6 +5,11 @@ import { CornerFlourish, Garland, Gift, Motif, Ornament } from '../../../compone
 import { resolvePalette, withAlpha } from '../../../utils/themePalette';
 import { decorFor, edgeCss, textureCss } from '../../../utils/themeDecor';
 import { COVER_DUST, giftsFor, type GiftPaint } from '../../../utils/themeGifts';
+import { getYouTubeId } from '../../../utils/youtube';
+import { useYouTubePlayer } from '../../../components/media/useYouTubePlayer';
+import { useInView } from '../../../hooks/useInView';
+import { SongPlayer } from './SongPlayer';
+import { SongChip } from './SongChip';
 
 import flor1_tema1 from '../../../assets/flores/tema 1/flor_1.png';
 import flor2_tema1 from '../../../assets/flores/tema 1/flor_2.png';
@@ -63,13 +68,6 @@ interface PhonePreviewProps {
   data: DedicationForm;
   isFullView?: boolean;
 }
-
-const getYouTubeId = (url: string): string | null => {
-  if (!url) return null;
-  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-  const match = url.match(regExp);
-  return match && match[2].length === 11 ? match[2] : null;
-};
 
 const THEME_FLOWERS: Record<string, string[]> = {
   // Búsqueda por ID de Tema
@@ -161,11 +159,20 @@ const usePhoneScale = () => {
 
 const ROTATIONS = ['-rotate-6', 'rotate-[5deg]', '-rotate-[4deg]', 'rotate-6', '-rotate-3'];
 
+/** Duración de la explosión de flores entre el sobre y la hoja. */
+const BLOOM_MS = 2800;
+
+/**
+ * Cuánto se espera, ya en la hoja, antes de arrancar la canción: lo justo para
+ * que el fundido de entrada la haya hecho visible. YouTube pide que más de la
+ * mitad del reproductor se vea antes de iniciar una reproducción automática.
+ */
+const SONG_START_DELAY_MS = 400;
+
 export const PhonePreview: React.FC<PhonePreviewProps> = ({ data, isFullView = false }) => {
   const [viewState, setViewState] = useState<'envelope' | 'blooming' | 'card'>('envelope');
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const [isClosingPhoto, setIsClosingPhoto] = useState<boolean>(false);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { ref: shellRef, scale } = usePhoneScale();
 
@@ -174,6 +181,21 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ data, isFullView = f
   const recipientName = data.recipient || 'Tu Persona Especial';
   const senderName = data.sender || 'Alguien que te quiere';
   const videoId = getYouTubeId(data.songUrl);
+
+  /**
+   * La canción, sobre la IFrame API oficial. El reproductor se crea en cuanto
+   * hay enlace, todavía con el sobre cerrado: así está listo cuando termine la
+   * floración y la música no llega con segundos de retraso.
+   */
+  const song = useYouTubePlayer(videoId);
+  const { play: playSong, pause: pauseSong } = song;
+  const songSectionRef = useRef<HTMLElement>(null);
+  const cardScrollRef = useRef<HTMLDivElement>(null);
+  const songInView = useInView(songSectionRef, {
+    root: cardScrollRef,
+    threshold: 0.5,
+    enabled: viewState === 'card' && Boolean(videoId),
+  });
 
   // La hoja de la carta necesita valores reales, no clases de Tailwind
   const palette = resolvePalette(theme);
@@ -231,14 +253,32 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ data, isFullView = f
     setViewState('blooming');
     timeoutRef.current = setTimeout(() => {
       setViewState('card');
-    }, 2800);
+    }, BLOOM_MS);
   };
 
   const handleCloseCard = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    pauseSong();
     setViewState('envelope');
     setSelectedPhotoIndex(null);
     setIsClosingPhoto(false);
+  };
+
+  /**
+   * El muro de interacción. Tocar el sobre es el gesto que el navegador exige
+   * para reproducir con sonido; la orden de reproducir sale cuando termina la
+   * floración y la hoja ya se ve, con el reproductor a la vista. Si aun así el
+   * navegador la rechaza —iOS no traspasa el gesto a un iframe de otro
+   * origen—, el reproductor lo dice y un toque sobre el vídeo basta.
+   */
+  useEffect(() => {
+    if (viewState !== 'card' || !videoId) return;
+    const timer = setTimeout(playSong, SONG_START_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [viewState, videoId, playSong]);
+
+  const revealSong = () => {
+    songSectionRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
   };
 
   const openPhoto = (idx: number) => {
@@ -651,7 +691,7 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ data, isFullView = f
         </div>
 
         {/* Vista Carta de Texto */}
-        <div className={`absolute inset-0 z-10 overflow-y-auto overflow-x-hidden hide-scrollbar custom-scrollbar transition-all duration-1000 ease-in-out ${
+        <div ref={cardScrollRef} className={`absolute inset-0 z-10 overflow-y-auto overflow-x-hidden hide-scrollbar custom-scrollbar transition-all duration-1000 ease-in-out ${
           viewState === 'card' ? 'opacity-100 pointer-events-auto scale-100' : 'opacity-0 pointer-events-none scale-95'
         }`}>
           {/* Ambiente del tema por delante de la hoja: si solo va detrás, el
@@ -762,6 +802,20 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ data, isFullView = f
                     <Ornament color={decor.metal} motif={decor.motif} width={140} className="mx-auto opacity-95" />
                   </div>
 
+                  {/* "Nuestra canción", visible y antes del texto: primero suena, luego se lee. */}
+                  {videoId && (
+                    <SongPlayer
+                      videoId={videoId}
+                      hostRef={song.hostRef}
+                      status={song.status}
+                      errorCode={song.errorCode}
+                      onToggle={song.toggle}
+                      palette={palette}
+                      decor={decor}
+                      sectionRef={songSectionRef}
+                    />
+                  )}
+
                   <div className="text-left pt-1">
               {renderedContent}
 
@@ -860,64 +914,24 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ data, isFullView = f
               className="relative z-10 mt-3 opacity-70"
             />
 
-            {/*
-              Reproductor de Música. Va en el flujo, justo bajo las flores, y
-              no anclado al borde: anclado dejaba un vacío largo entre el
-              cierre de la carta y la barra siempre que el mensaje era corto.
-              Toma los colores del tema, no el blanco y gris de antes.
-            */}
-            {videoId && (
-              <div
-                className="relative z-20 mt-5 w-[90%] max-w-70 backdrop-blur-md p-2 px-3.5 rounded-full flex items-center justify-between gap-2.5 shrink-0"
-                style={{
-                  backgroundColor: withAlpha(palette.cardBg, 0.95),
-                  border: `1px solid ${withAlpha(decor.metal, 0.5)}`,
-                  boxShadow: `0 12px 28px -14px ${withAlpha(palette.text, 0.6)}`,
-                }}
-              >
-                {isPlaying && (
-                  <iframe
-                    className="hidden"
-                    src={`https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1`}
-                    allow="autoplay"
-                  />
-                )}
-                <button
-                  type="button"
-                  onClick={() => setIsPlaying(!isPlaying)}
-                  className="w-8 h-8 rounded-full flex items-center justify-center shadow-xs active:scale-95 transition-transform cursor-pointer"
-                  style={{
-                    backgroundColor: palette.accent,
-                    color: palette.cardBg,
-                    border: `1px solid ${withAlpha(decor.metal, 0.55)}`,
-                  }}
-                >
-                  <span className="material-symbols-outlined text-sm">{isPlaying ? 'pause' : 'play_arrow'}</span>
-                </button>
-                <div className="flex-1 text-left overflow-hidden">
-                  <p
-                    className="text-[10px] font-semibold truncate"
-                    style={{ color: palette.text }}
-                  >
-                    Música de la Dedicatoria
-                  </p>
-                  <p
-                    className="text-[8px] truncate opacity-65"
-                    style={{ color: palette.text }}
-                  >
-                    {isPlaying ? 'Reproduciendo audio...' : 'Pausado'}
-                  </p>
-                </div>
-                <span
-                  className={`material-symbols-outlined text-sm ${isPlaying ? 'animate-pulse' : 'opacity-45'}`}
-                  style={{ color: palette.accent }}
-                >
-                  equalizer
-                </span>
-              </div>
-            )}
           </div>
         </div>
+
+        {/*
+          Mando de la canción cuando el reproductor ya quedó arriba, fuera de la
+          vista. Vive fuera del área con scroll y solo aparece entonces: nunca
+          se pone encima del vídeo.
+        */}
+        {videoId && (
+          <SongChip
+            visible={viewState === 'card' && !songInView && selectedPhotoIndex === null}
+            status={song.status}
+            onToggle={song.toggle}
+            onReveal={revealSong}
+            palette={palette}
+            decor={decor}
+          />
+        )}
 
         {/* Visor Lightbox */}
         {selectedPhotoIndex !== null && photoUrls.length > 0 && (
