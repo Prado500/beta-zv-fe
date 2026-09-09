@@ -1,7 +1,7 @@
 import React, { type BaseSyntheticEvent } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 import type { CheckoutInput, CheckoutStatus, CheckoutValues } from '../../../hooks/useCheckoutFlow';
-import { MAX_PASSWORD, MIN_PASSWORD } from '../../../services/checkout';
+import { MAX_PASSWORD, MIN_PASSWORD } from '../../../../auth/services/auth';
 import { FieldError } from '../../../../../components/ui/FieldError';
 import { fieldClass, fieldTone, HINT, LABEL } from '../../../../../components/ui/formStyles';
 

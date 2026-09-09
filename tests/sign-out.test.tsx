@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import { ApiError } from '../src/utils/api';
 import { listDedications } from '../src/modules/dedications/services/dedications';
-import { logout } from '../src/modules/promo/services/checkout';
+import { logout } from '../src/modules/auth/services/auth';
 import { PUBLISHED, cards, gate, renderPanel } from './dedicationsHarness';
 import { asButton, deferred, setupUser } from './testUtils';
 
@@ -20,8 +20,8 @@ vi.mock('../src/modules/dedications/services/dedications', async (importOriginal
   resendDelivery: vi.fn(),
 }));
 
-vi.mock('../src/modules/promo/services/checkout', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../src/modules/promo/services/checkout')>()),
+vi.mock('../src/modules/auth/services/auth', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/modules/auth/services/auth')>()),
   login: vi.fn(),
   logout: vi.fn(),
 }));

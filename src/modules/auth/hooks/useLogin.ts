@@ -4,17 +4,21 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { describeError } from '../../../utils/apiErrors';
 import { email } from '../../../utils/validation';
-import { login } from '../../promo/services/checkout';
+import { login, type UserResponse } from '../services/auth';
+import { useAuth } from '../useAuth';
 
 /**
- * ViewModel de la puerta de sesión: correo, contraseña y entrar.
+ * ViewModel de entrar: correo, contraseña y sesión.
  *
- * Reutiliza el `login` de la compra porque es la misma cuenta y la misma cookie;
- * lo único distinto es el motivo por el que se entra. La validación es la de
- * siempre (Zod + React Hook Form, veredicto en cada tecla), pero sin las reglas
- * del alta: aquí no se decide cómo debe ser una contraseña, solo que haya una.
- * Rechazar en el navegador una contraseña que el servidor sí aceptaría dejaría
- * fuera a quien la creó con otra regla.
+ * Lo usa la puerta del panel; el modal de compra tiene su propio flujo porque
+ * después de entrar sigue hacia el pago, pero comparte las reglas de aquí. La
+ * validación es la de siempre (Zod + React Hook Form, veredicto en cada tecla),
+ * sin las reglas del alta: al entrar no se decide cómo debe ser una contraseña,
+ * solo que haya una. Rechazar en el navegador una contraseña que el servidor sí
+ * aceptaría dejaría fuera a quien la creó con otra regla.
+ *
+ * Al entrar se publica el usuario en el estado global: la cabecera lo pinta y
+ * el resto de la app deja de preguntar.
  */
 
 export const loginSchema = z.object({
@@ -30,16 +34,17 @@ export type LoginValues = z.output<typeof loginSchema>;
  * sesión, lo que falló fue la contraseña. Se cubre por código y por estado
  * porque ambos llegan según el camino del backend.
  */
-const WRONG_CREDENTIALS = 'Correo o contraseña incorrectos. Revísalos e intenta de nuevo.';
+export const WRONG_CREDENTIALS = 'Correo o contraseña incorrectos. Revísalos e intenta de nuevo.';
 
-export interface SessionGateModel {
+export interface LoginModel {
   form: UseFormReturn<LoginInput, unknown, LoginValues>;
   busy: boolean;
   error: string | null;
   submit: (event: BaseSyntheticEvent) => void;
 }
 
-export const useSessionGate = (onLoggedIn: () => void): SessionGateModel => {
+export const useLogin = (onLoggedIn: (user: UserResponse) => void): LoginModel => {
+  const auth = useAuth();
   const form = useForm<LoginInput, unknown, LoginValues>({
     resolver: zodResolver(loginSchema),
     // Fail-fast: el borde cambia de color mientras se escribe, no al enviar.
@@ -63,8 +68,9 @@ export const useSessionGate = (onLoggedIn: () => void): SessionGateModel => {
       setBusy(true);
       setError(null);
       try {
-        await login(values.email, values.password);
-        onLoggedIn();
+        const user = await login(values.email, values.password);
+        auth.setUser(user);
+        onLoggedIn(user);
       } catch (problem) {
         setError(
           describeError(problem, {
@@ -77,7 +83,7 @@ export const useSessionGate = (onLoggedIn: () => void): SessionGateModel => {
         setBusy(false);
       }
     },
-    [onLoggedIn],
+    [auth, onLoggedIn],
   );
 
   /** Se compone al pulsar, no al pintar (mismo motivo que en `useCheckoutFlow`). */

@@ -4,13 +4,9 @@ import { PurchaseModal } from '../src/modules/promo/components/checkout/Purchase
 import { CONFIRM_DELAY_SECONDS } from '../src/modules/promo/components/checkout/steps/EmailConfirmStep';
 import { ApiError } from '../src/utils/api';
 import { redirectTo } from '../src/utils/navigation';
-import {
-  createPurchase,
-  login,
-  register as registerAccount,
-  type PurchaseResponse,
-} from '../src/modules/promo/services/checkout';
-import { asButton, deferred, renderAt, setupUser } from './testUtils';
+import { login, register as registerAccount } from '../src/modules/auth/services/auth';
+import { createPurchase, type PurchaseResponse } from '../src/modules/promo/services/checkout';
+import { asButton, asInput, deferred, renderAt, setupUser, USER } from './testUtils';
 
 /**
  * Compra: cuenta, confirmación del correo, contraseña y salida hacia Mercado Pago.
@@ -24,10 +20,14 @@ import { asButton, deferred, renderAt, setupUser } from './testUtils';
  * `waitFor` y `userEvent`— y además se pueda saltar la cuenta a voluntad.
  */
 
-vi.mock('../src/modules/promo/services/checkout', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../src/modules/promo/services/checkout')>()),
+vi.mock('../src/modules/auth/services/auth', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/modules/auth/services/auth')>()),
   register: vi.fn(),
   login: vi.fn(),
+}));
+
+vi.mock('../src/modules/promo/services/checkout', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/modules/promo/services/checkout')>()),
   createPurchase: vi.fn(),
 }));
 
@@ -108,8 +108,8 @@ const fill = async (user: ReturnType<typeof setup>, email = EMAIL) => {
 describe('PurchaseModal', () => {
   it('camino feliz: recorre los tres pasos, crea la compra y sale hacia Mercado Pago', async () => {
     const user = setup();
-    vi.mocked(registerAccount).mockResolvedValue({} as never);
-    vi.mocked(login).mockResolvedValue({} as never);
+    vi.mocked(registerAccount).mockResolvedValue(USER);
+    vi.mocked(login).mockResolvedValue(USER);
     vi.mocked(createPurchase).mockResolvedValue(PURCHASE);
 
     open();
@@ -123,6 +123,8 @@ describe('PurchaseModal', () => {
     expect(registerAccount).toHaveBeenCalledWith({ name: NAME, email: EMAIL, password: PASSWORD });
     // Sin este apunte, a la vuelta de la pasarela no sabríamos qué verificar.
     expect(window.sessionStorage.getItem('checkout:purchaseId')).toBe('pur_123');
+    // Y la app se acuerda de que aquí hubo sesión: la próxima carga preguntará a /me.
+    expect(window.localStorage.getItem('auth:signedInAt')).not.toBeNull();
   });
 
   it('correo inválido: avisa mientras se escribe y no deja pasar del primer paso', async () => {
@@ -178,8 +180,8 @@ describe('PurchaseModal', () => {
 
   it('errata corregida en la confirmación: se registra el correo bueno, no el original', async () => {
     const user = setup();
-    vi.mocked(registerAccount).mockResolvedValue({} as never);
-    vi.mocked(login).mockResolvedValue({} as never);
+    vi.mocked(registerAccount).mockResolvedValue(USER);
+    vi.mocked(login).mockResolvedValue(USER);
     vi.mocked(createPurchase).mockResolvedValue(PURCHASE);
 
     open();
@@ -238,15 +240,15 @@ describe('PurchaseModal', () => {
     // El tope no se descubre con un error en rojo: el campo deja de escribir.
     await user.clear(password);
     await user.type(password, 'abcdefghijklmno');
-    expect(asButton(password).value).toBe('abcdefghij');
+    expect(asInput(password).value).toBe('abcdefghij');
     expect(password.getAttribute('aria-invalid')).toBe('false');
   });
 
   it('doble clic: solo se crea una compra', async () => {
     const user = setup();
     const pending = deferred<PurchaseResponse>();
-    vi.mocked(registerAccount).mockResolvedValue({} as never);
-    vi.mocked(login).mockResolvedValue({} as never);
+    vi.mocked(registerAccount).mockResolvedValue(USER);
+    vi.mocked(login).mockResolvedValue(USER);
     vi.mocked(createPurchase).mockReturnValue(pending.promise);
 
     open();
@@ -262,27 +264,42 @@ describe('PurchaseModal', () => {
     expect(createPurchase).toHaveBeenCalledTimes(1);
   });
 
-  it('registro 409 con contraseña equivocada: error en rojo y botón reactivado', async () => {
+  it('registro 409 con otra contraseña: pasa a la entrada con el correo puesto, sin perder la compra', async () => {
     const user = setup();
     vi.mocked(registerAccount).mockRejectedValue(
-      new ApiError(409, 'EMAIL_IN_USE', 'Ese correo ya está registrado.'),
+      new ApiError(409, 'EMAIL_IN_USE', 'No se puede registrar ese correo.'),
     );
-    vi.mocked(login).mockRejectedValue(
-      new ApiError(401, 'INVALID_CREDENTIALS', 'Credenciales inválidas.'),
-    );
+    vi.mocked(login)
+      .mockRejectedValueOnce(new ApiError(401, 'INVALID_CREDENTIALS', 'Credenciales inválidas.'))
+      .mockResolvedValueOnce(USER);
+    vi.mocked(createPurchase).mockResolvedValue(PURCHASE);
 
     open();
     await fill(user);
     await user.click(submitButton());
 
-    const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toContain('Ese correo ya tiene cuenta');
-    expect(alert.className).toContain('text-error');
+    // Cambia de puerta él solo: la entrada, con el correo ya puesto, y un aviso
+    // que explica por qué. No es un error, así que no va en rojo.
+    const notice = await screen.findByRole('status');
+    expect(notice.textContent).toContain('Este correo ya tiene cuenta');
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByLabelText('Tu nombre')).toBeNull();
+    expect(asInput(screen.getByLabelText('Tu correo')).value).toBe(EMAIL);
 
-    // El intento falló, pero la compra no: hay que poder reintentar.
-    expect(submitButton().disabled).toBe(false);
+    // La contraseña "nueva" no sirve de nada aquí: el campo llega vacío y con el foco.
+    const password = asInput(screen.getByLabelText('Contraseña'));
+    expect(password.value).toBe('');
+    expect(document.activeElement).toBe(password);
     expect(createPurchase).not.toHaveBeenCalled();
-    expect(redirectTo).not.toHaveBeenCalled();
+
+    // Con la contraseña de siempre sigue al pago, sin volver a intentar el alta.
+    await user.type(password, 'laBuena1');
+    await user.click(screen.getByRole('button', { name: /Entrar y continuar al pago/ }));
+
+    await waitFor(() => expect(redirectTo).toHaveBeenCalledWith(PURCHASE.checkoutUrl));
+    expect(registerAccount).toHaveBeenCalledTimes(1);
+    expect(login).toHaveBeenLastCalledWith(EMAIL, 'laBuena1');
+    expect(createPurchase).toHaveBeenCalledTimes(1);
   });
 
   it('registro 409 con la contraseña correcta: entra con su cuenta y sigue al pago', async () => {
@@ -290,7 +307,7 @@ describe('PurchaseModal', () => {
     vi.mocked(registerAccount).mockRejectedValue(
       new ApiError(409, 'EMAIL_IN_USE', 'Ese correo ya está registrado.'),
     );
-    vi.mocked(login).mockResolvedValue({} as never);
+    vi.mocked(login).mockResolvedValue(USER);
     vi.mocked(createPurchase).mockResolvedValue(PURCHASE);
 
     open();
@@ -303,8 +320,8 @@ describe('PurchaseModal', () => {
 
   it('pasarela sin URL de checkout: lo dice y no navega a ninguna parte', async () => {
     const user = setup();
-    vi.mocked(registerAccount).mockResolvedValue({} as never);
-    vi.mocked(login).mockResolvedValue({} as never);
+    vi.mocked(registerAccount).mockResolvedValue(USER);
+    vi.mocked(login).mockResolvedValue(USER);
     vi.mocked(createPurchase).mockResolvedValue({ ...PURCHASE, checkoutUrl: null });
 
     open();

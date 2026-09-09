@@ -1,10 +1,9 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ModalShell } from '../../../components/ui/ModalShell';
-import { FieldError } from '../../../components/ui/FieldError';
-import { fieldClass, fieldTone, LABEL } from '../../../components/ui/formStyles';
 import { Ornament } from '../../../components/decor';
-import { useSessionGate } from '../hooks/useSessionGate';
+import { CredentialFields } from '../../auth/components/CredentialFields';
+import { useLogin } from '../../auth/hooks/useLogin';
 
 /**
  * La puerta del panel: "Inicia sesión para ver tus dedicatorias".
@@ -17,6 +16,9 @@ import { useSessionGate } from '../hooks/useSessionGate';
  * camino que deja una compra pagada que listar), así que a quien no tiene cuenta
  * se le manda a la página principal, no a un formulario que acabaría en un panel
  * vacío.
+ *
+ * Los campos y el hook son los mismos que usa el modal de compra para entrar:
+ * una sola forma de escribir el correo y la contraseña en toda la app.
  */
 
 interface SessionGateProps {
@@ -25,7 +27,7 @@ interface SessionGateProps {
 }
 
 export const SessionGate: React.FC<SessionGateProps> = ({ onLoggedIn }) => {
-  const { form, busy, error, submit } = useSessionGate(onLoggedIn);
+  const { form, busy, error, submit } = useLogin(onLoggedIn);
   const {
     register,
     setFocus,
@@ -37,9 +39,6 @@ export const SessionGate: React.FC<SessionGateProps> = ({ onLoggedIn }) => {
   useEffect(() => {
     setFocus('email');
   }, [setFocus]);
-
-  const tone = (field: 'email' | 'password') =>
-    fieldTone(Boolean(errors[field]), Boolean(dirtyFields[field]));
 
   return (
     <ModalShell labelledBy="session-gate-title">
@@ -68,40 +67,15 @@ export const SessionGate: React.FC<SessionGateProps> = ({ onLoggedIn }) => {
       </div>
 
       <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-        <div>
-          <label className={LABEL} htmlFor="session-email">
-            Tu correo
-          </label>
-          <input
-            id="session-email"
-            type="email"
-            {...register('email')}
-            autoComplete="email"
-            placeholder="tucorreo@ejemplo.com"
-            aria-invalid={Boolean(errors.email)}
-            aria-describedby={errors.email ? 'session-email-error' : undefined}
-            className={fieldClass(tone('email'))}
-          />
-          <FieldError id="session-email-error" message={errors.email?.message} />
-        </div>
-
-        <div>
-          <label className={LABEL} htmlFor="session-password">
-            Contraseña
-          </label>
-          <input
-            id="session-password"
-            type="password"
-            {...register('password')}
-            autoComplete="current-password"
-            maxLength={128}
-            placeholder="Tu contraseña"
-            aria-invalid={Boolean(errors.password)}
-            aria-describedby={errors.password ? 'session-password-error' : undefined}
-            className={fieldClass(tone('password'))}
-          />
-          <FieldError id="session-password-error" message={errors.password?.message} />
-        </div>
+        <CredentialFields
+          idPrefix="session"
+          email={register('email')}
+          password={register('password')}
+          emailError={errors.email?.message}
+          passwordError={errors.password?.message}
+          emailTouched={Boolean(dirtyFields.email)}
+          passwordTouched={Boolean(dirtyFields.password)}
+        />
 
         {error && (
           <p className="text-sm text-error font-medium text-center" role="alert">
