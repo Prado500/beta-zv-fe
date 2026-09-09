@@ -3,6 +3,7 @@ import LandingPage from './modules/promo/page/LandingPage';
 import EditorPage from './modules/editor/page/EditorPage';
 import CardViewerPage from './modules/viewer/page/CardViewerPage';
 import PaymentReturnPage from './modules/promo/page/PaymentReturnPage';
+import MyDedicationsPage from './modules/dedications/page/MyDedicationsPage';
 
 export default function App() {
   return (
@@ -10,6 +11,12 @@ export default function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/editor" element={<EditorPage />} />
+        {/*
+          Panel posventa. La ruta no lleva envoltorio de sesión: la cookie es
+          `HttpOnly` y no se puede leer desde aquí; es la propia página la que
+          pide el listado y, ante un 401, monta la puerta de inicio de sesión.
+        */}
+        <Route path="/mis-dedicatorias" element={<MyDedicationsPage />} />
         {/*
           Vuelta de Mercado Pago. Es la URL que el backend registra como
           `back_url`: trae el `payment_id` en la query y aquí se cambia por una
