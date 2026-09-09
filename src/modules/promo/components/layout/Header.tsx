@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 export const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -15,6 +16,8 @@ export const Header: React.FC = () => {
           {/* <a className="font-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">Gallery</a> */}
           {/* <a className="font-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">Features</a> */}
           <a className="font-label-md text-on-surface-variant hover:text-primary transition-colors" href="#pricing">Precio</a>
+          {/* Ruta de la app, no ancla de la landing: va con `Link` para no recargar la página */}
+          <Link className="font-label-md text-on-surface-variant hover:text-primary transition-colors" to="/mis-dedicatorias">Mis Dedicatorias</Link>
         </nav>
         <a className="font-label-md font-medium text-white bg-primary hover:bg-primary-container px-6 py-2 rounded-lg transition-all duration-300 shadow-sm hover:shadow-md hidden md:inline-flex items-center gap-2" href="#pricing">
           Comienza a escribir
@@ -41,6 +44,7 @@ export const Header: React.FC = () => {
           {/* <a className="font-label-md text-on-surface-variant hover:text-primary transition-colors" href="#" onClick={() => setIsMobileMenuOpen(false)}>Gallery</a> */}
           {/* <a className="font-label-md text-on-surface-variant hover:text-primary transition-colors" href="#" onClick={() => setIsMobileMenuOpen(false)}>Features</a> */}
           <a className="font-label-md text-on-surface-variant hover:text-primary transition-colors py-3 px-2 -mx-2 rounded-lg" href="#pricing" onClick={() => setIsMobileMenuOpen(false)}>Precio</a>
+          <Link className="font-label-md text-on-surface-variant hover:text-primary transition-colors py-3 px-2 -mx-2 rounded-lg" to="/mis-dedicatorias" onClick={() => setIsMobileMenuOpen(false)}>Mis Dedicatorias</Link>
           <a className="font-label-md font-medium text-white bg-wine hover:bg-primary px-6 py-3.5 rounded-full text-center transition-all flex items-center justify-center gap-2 mt-1" href="#pricing" onClick={() => setIsMobileMenuOpen(false)}>
             Empezar ahora
             <span className="material-symbols-outlined text-[18px]">edit</span>

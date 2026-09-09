@@ -70,6 +70,18 @@ export const login = (email: string, password: string): Promise<UserResponse> =>
 export const currentUser = (): Promise<UserResponse> => apiGet<UserResponse>('/api/v1/me');
 
 /**
+ * Cierra la sesión en el servidor y borra su cookie.
+ *
+ * Es una escritura y lleva CSRF como cualquier POST. El token CSRF no se olvida
+ * aquí a propósito: no va atado a la sesión —lo firma el servidor con su propio
+ * secreto— y sigue valiendo para el siguiente inicio de sesión desde este mismo
+ * navegador. Si la sesión ya había caducado, el backend responde igual: cerrar
+ * lo que no existe no es un error para quien quería salir.
+ */
+export const logout = (): Promise<{ message: string }> =>
+  apiPost<{ message: string }>('/api/v1/auth/logout');
+
+/**
  * Clave de idempotencia de la compra.
  *
  * La genera el cliente y se reutiliza mientras dure el intento: si el usuario da
