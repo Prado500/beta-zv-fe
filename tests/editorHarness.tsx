@@ -1,5 +1,7 @@
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
+import { afterEach, beforeEach, vi } from 'vitest';
 import EditorPage from '../src/modules/editor/page/EditorPage';
+import { CONFIRM_DELAY_SECONDS } from '../src/modules/editor/components/EmailConfirmModal';
 import { asButton, renderAt, setupUser } from './testUtils';
 
 /**
@@ -8,6 +10,10 @@ import { asButton, renderAt, setupUser } from './testUtils';
  * Rellenar el paso 1 y llegar al botón de enviar es la mitad de cada caso; si
  * cada archivo lo escribe a su manera, cambiar una etiqueta rompe cinco pruebas
  * por motivos que no tienen nada que ver con lo que estaban comprobando.
+ *
+ * La confirmación del correo lleva un freno de tres segundos. Las suites que
+ * pasan por ella instalan un reloj falso que sigue corriendo solo —lo que
+ * necesitan `userEvent` y `waitFor`— y saltan el freno con `confirm`.
  */
 
 export const PURCHASE_ID = 'pur_test_1';
@@ -55,5 +61,39 @@ export const submitButton = () =>
     }),
   );
 
+/** El botón de confirmar, en cualquiera de sus tres caras: freno, listo o enviando. */
 export const confirmButton = () =>
-  asButton(screen.getByRole('button', { name: /Sí, es correcto|Enviando tu carta/i }));
+  asButton(screen.getByRole('button', { name: /Sí, es correcto|Enviando tu carta|Espera \d/i }));
+
+/* ---------- El freno de la confirmación ---------- */
+
+export const CONFIRM_DELAY_MS = CONFIRM_DELAY_SECONDS * 1000;
+
+/**
+ * Reloj falso para toda la suite. `shouldAdvanceTime` deja que el tiempo siga
+ * corriendo solo, así `waitFor` y `userEvent` no se quedan esperando un reloj
+ * parado; el freno se salta a voluntad con `passFreeze`.
+ */
+export const installFreezeClock = () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+};
+
+/** `userEvent` programa sus propios temporizadores: con el reloj falso hay que avanzarlos. */
+export const setupEditorUser = () => setupUser({ advanceTimers: vi.advanceTimersByTime });
+
+/** Deja pasar los tres segundos del freno. */
+export const passFreeze = () =>
+  act(() => {
+    vi.advanceTimersByTime(CONFIRM_DELAY_MS);
+  });
+
+/** Espera el freno y pulsa "Sí, es correcto". */
+export const confirm = async (user: ReturnType<typeof setupUser>) => {
+  passFreeze();
+  await user.click(confirmButton());
+};

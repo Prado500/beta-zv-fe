@@ -1,13 +1,14 @@
+import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ThemeQRCode } from '../src/modules/editor/components/ThemeQRCode';
+import { ThemeQRCode, type ThemeQRCodeHandle } from '../src/modules/editor/components/ThemeQRCode';
 import type { DedicationForm } from '../src/modules/editor/types';
 import { DEFAULT_NOTE, SCAN_LINE } from '../src/utils/qrCard';
 
 /**
  * La postal del QR: el código apunta al enlace, el emblema alado va en el
  * centro, y los nombres y la nota salen de la carta con sus valores por
- * defecto cuando faltan.
+ * defecto cuando faltan. La descarga se ofrece con su botón o por `ref`.
  */
 
 interface QrProps {
@@ -81,8 +82,20 @@ describe('ThemeQRCode', () => {
     expect(tile.style.backgroundColor.replace(/\s/g, '')).toBe('rgb(255,255,255)');
   });
 
-  it('ofrece la descarga de la postal en PNG', () => {
-    render(<ThemeQRCode data={LETTER} cardUrl={URL_} />);
+  it('por defecto ofrece su propio botón de descarga; con showDownload en false lo esconde', () => {
+    const { unmount } = render(<ThemeQRCode data={LETTER} cardUrl={URL_} />);
     expect(screen.getByRole('button', { name: /Descargar postal QR/ })).toBeTruthy();
+    unmount();
+
+    render(<ThemeQRCode data={LETTER} cardUrl={URL_} showDownload={false} />);
+    expect(screen.queryByRole('button', { name: /Descargar postal QR/ })).toBeNull();
+  });
+
+  it('expone la descarga por ref y no rompe donde no hay canvas', async () => {
+    const handle = createRef<ThemeQRCodeHandle>();
+    render(<ThemeQRCode ref={handle} data={LETTER} cardUrl={URL_} showDownload={false} />);
+
+    expect(handle.current).not.toBeNull();
+    await expect(handle.current?.download()).resolves.toBeUndefined();
   });
 });
