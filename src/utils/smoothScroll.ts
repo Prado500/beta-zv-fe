@@ -16,9 +16,16 @@ const easeInOutCubic = (t: number): number =>
   t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
 
 const MIN_MS = 340;
-const MAX_MS = 820;
+/*
+ * El tope estaba en 820 ms, y de la barra a "Precio" hay 7400 px: el recorrido
+ * entero se hacía en poco más de medio segundo y no se leía como un viaje sino
+ * como un corte con estela. Medido: pasaba de 0 a 7394 px en catorce
+ * fotogramas. Con 1150 ms el trayecto largo se ve, y los cortos siguen siendo
+ * cortos porque la duración es proporcional.
+ */
+const MAX_MS = 1150;
 /** Milisegundos por cada mil píxeles de recorrido. */
-const MS_PER_1000PX = 190;
+const MS_PER_1000PX = 110;
 
 /** Gestos con los que la persona retoma el control a mitad de recorrido. */
 const SURRENDER_EVENTS: (keyof WindowEventMap)[] = ['wheel', 'touchstart', 'keydown'];

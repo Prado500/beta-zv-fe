@@ -184,7 +184,13 @@ describe('anclas de la landing', () => {
     const hrefs = SECTION_LINKS.map((item) => item.href);
 
     const desktop = within(screen.getByRole('navigation', { name: 'Secciones' })).getAllByRole('link');
-    expect(desktop.map((a) => a.getAttribute('href'))).toEqual([...hrefs, '/mis-dedicatorias']);
+    /*
+     * La barra de secciones lleva SOLO secciones. "Mis Dedicatorias" es una
+     * ruta de la app y vive con la sesión, al otro lado del separador: dentro
+     * de esta lista convertía la barra en nueve cosas sin jerarquía.
+     * Que siga estando en el escritorio lo comprueba `header-nav`.
+     */
+    expect(desktop.map((a) => a.getAttribute('href'))).toEqual(hrefs);
 
     await user.click(screen.getByRole('button', { name: 'Abrir menú' }));
     const mobile = within(screen.getByRole('navigation', { name: 'Menú' })).getAllByRole('link');

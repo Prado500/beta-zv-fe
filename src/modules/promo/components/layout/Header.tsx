@@ -31,7 +31,7 @@ interface HeaderProps {
 }
 
 const NAV_LINK =
-  'font-label-md text-sm text-on-surface-variant hover:text-primary transition-colors whitespace-nowrap';
+  'font-label-md text-[13px] text-on-surface-variant hover:text-primary transition-colors whitespace-nowrap';
 const MENU_LINK =
   'font-label-md text-on-surface-variant hover:text-primary hover:bg-blush/50 transition-colors py-3 px-2 -mx-2 rounded-lg';
 const MENU_ACTION =
@@ -47,26 +47,42 @@ export const Header: React.FC<HeaderProps> = ({ onSignIn }) => {
 
   return (
     <header className="w-full bg-paper/95 shadow-sm border-b border-wine/10">
-      <div className="max-w-container-max mx-auto px-margin-mobile md:px-gutter h-14 md:h-16 flex justify-between items-center gap-4">
+      <div className="max-w-container-max mx-auto px-margin-mobile md:px-gutter h-14 md:h-16 flex justify-between items-center gap-3">
         <a href="#inicio" className="flex items-center gap-2.5 shrink-0">
           <span className="material-symbols-outlined text-[#D4AF37] text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span>
-          <span className="font-script text-wine text-2xl md:text-3xl leading-none pb-1">Eternal Dedications</span>
+          {/*
+            Encoge en `lg` y vuelve a crecer en `xl`. A 30px el logotipo mide
+            227px, y entre él, las siete secciones y el bloque de la derecha
+            hacían falta 1239px dentro de un contenedor topado en 1200: la barra
+            no cabía a ningún tamaño, y por eso se veía apretujada.
+          */}
+          <span className="font-script text-wine text-2xl md:text-3xl lg:text-2xl leading-none pb-1">
+            Eternal Dedications
+          </span>
         </a>
 
-        <nav className="hidden lg:flex gap-5 items-center" aria-label="Secciones">
+        {/*
+          Solo secciones de la landing. "Mis Dedicatorias" se fue al bloque de
+          la derecha, con la sesión: es una ruta de la app, no un sitio de esta
+          página, y mezclada aquí convertía la barra en una fila de nueve cosas
+          sin jerarquía que no se podía leer de un vistazo.
+        */}
+        <nav className="hidden xl:flex gap-4 items-center" aria-label="Secciones">
           {SECTION_LINKS.map((link) => (
             <a key={link.href} href={link.href} className={NAV_LINK}>
               {link.label}
             </a>
           ))}
-          {/* Ruta de la app, no ancla de la landing: va con `Link` para no recargar la página */}
-          <Link className={NAV_LINK} to="/mis-dedicatorias">
-            Mis Dedicatorias
-          </Link>
         </nav>
 
         <div className="flex items-center gap-2 md:gap-4 shrink-0">
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-3">
+            {/* Ruta de la app: `Link` para no recargar la página */}
+            <Link className={`hidden xl:inline ${NAV_LINK}`} to="/mis-dedicatorias">
+              Mis Dedicatorias
+            </Link>
+            {/* La línea separa lo que es navegar de lo que es tu cuenta */}
+            <span aria-hidden="true" className="hidden xl:block h-5 w-px bg-wine/15" />
             {signedIn && auth.user ? (
               <UserMenu user={auth.user} onSignOut={() => void session.signOut()} busy={session.busy} />
             ) : auth.status === 'anonymous' ? (
@@ -89,14 +105,26 @@ export const Header: React.FC<HeaderProps> = ({ onSignIn }) => {
               href="#pricing"
             >
               Comienza a escribir
-              <span className="material-symbols-outlined text-[18px]">edit</span>
+              <span aria-hidden="true" className="hidden 2xl:block">
+                {/*
+                  Envuelto a propósito: la hoja de Google para
+                  `.material-symbols-outlined` viaja SIN capa, y en Tailwind v4
+                  cualquier CSS sin capa le gana a todas las utilidades.
+                  `hidden` puesto sobre el propio icono no hacía nada.
+                */}
+                <span className="material-symbols-outlined text-[18px] block">edit</span>
+              </span>
             </a>
           </div>
 
-          {/* El desplegable llega hasta lg: entre md y lg no cabe la lista de secciones */}
+          {/*
+            El desplegable llega hasta `xl`. Medido: la barra entera pide
+            1177 px y por debajo de 1280 solo hay entre 976 y 1052, así que
+            hasta ahí manda el menú, que ya lista lo mismo.
+          */}
           <button
             type="button"
-            className="lg:hidden text-wine p-3 -mr-2 focus:outline-none cursor-pointer"
+            className="xl:hidden text-wine p-3 -mr-2 focus:outline-none cursor-pointer"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             aria-label={isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
             aria-expanded={isMobileMenuOpen}
@@ -120,7 +148,7 @@ export const Header: React.FC<HeaderProps> = ({ onSignIn }) => {
           a partir de md para no aparecer dos veces. */}
       {isMobileMenuOpen && (
         <nav
-          className="lg:hidden bg-white border-b border-wine/10 px-5 py-3 flex flex-col gap-0.5 max-h-[70vh] overflow-y-auto"
+          className="xl:hidden bg-white border-b border-wine/10 px-5 py-3 flex flex-col gap-0.5 max-h-[70vh] overflow-y-auto"
           aria-label="Menú"
         >
           {signedIn && auth.user && (

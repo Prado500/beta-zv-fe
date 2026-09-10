@@ -21,6 +21,8 @@ export interface CardCopy {
   monogram: string;
   sender: string;
   songUrl: string;
+  /** Los 11 caracteres del video, para el marco de YouTube. */
+  videoId: string;
   hasSong: boolean;
 }
 
@@ -132,29 +134,6 @@ export const buildEnvelope = (
     </div>`;
 };
 
-/* ---------- Estallido de flores ---------- */
-
-const TOTAL_BLOOMS = 32;
-
-export const buildBlooms = (flowers: string[]): string => {
-  const petals = Array.from({ length: TOTAL_BLOOMS }, (_, i) => {
-    const angle = i * 137.5 * (Math.PI / 180);
-    const tx = Math.cos(angle) * Math.sqrt(i) * 36;
-    const ty = Math.sin(angle) * Math.sqrt(i) * 78;
-    const rot = (i * 40) % 360;
-    const delay = (i % 6) * 0.03;
-    const scale = 1.2 + ((Math.sin(i * 999) + 1) / 2) * 0.5;
-
-    return `<div class="bloom" style="z-index: ${50 + i}; --tx: ${tx.toFixed(
-      1,
-    )}px; --ty: ${ty.toFixed(1)}px; --rot: ${rot}deg; --scale: ${scale.toFixed(
-      3,
-    )}; animation-delay: ${delay}s;"><img src="${flowers[i % flowers.length]}" alt=""/></div>`;
-  }).join('');
-
-  return `<div class="blooms">${petals}</div>`;
-};
-
 /* ---------- Carta ---------- */
 
 const polaroid = (card: PhotoCard, variant: 'inline' | 'gallery'): string => {
@@ -193,7 +172,7 @@ export const buildCard = (
   palette: ThemePalette,
   decor: ThemeDecor,
   gifts: [Gift, Gift],
-  player: string,
+  music: string,
 ): string => {
   const paint = paintFor(palette, decor);
 
@@ -261,26 +240,84 @@ export const buildCard = (
           ${giftSvg(gifts[1], 56, paint, 'sheet__outro-gift sheet__outro-gift--b')}
         </div>
         <span class="sheet__outro-orn">${ornament(decor.metal, 140, decor.motif)}</span>
-        ${player}
+        ${music}
       </div>
     </div>`;
 };
 
-/* ---------- Reproductor ---------- */
+/* ---------- Módulo de música ---------- */
 
-export const buildPlayer = (copy: CardCopy): string => {
+/**
+ * El video encima, los controles debajo, como un solo bloque apilado.
+ *
+ * La pantalla se ve DE VERDAD —nada de opacidad al 1% ni de medidas de un
+ * píxel—: Chrome y Safari de móvil se niegan a reproducir dentro de un marco
+ * que consideran oculto, y ese era el motivo de que la canción no sonara en
+ * algunos celulares.
+ *
+ * Los dos paneles —el normal y el de "no se puede embeber"— se imprimen
+ * siempre y es el CSS quien enseña uno u otro según la clase `is-blocked` que
+ * pone el guion. Así no hay que construir HTML desde JavaScript.
+ */
+export const buildMusic = (copy: CardCopy): string => {
   if (!copy.hasSong) return '';
+
+  const params = [
+    'enablejsapi=1',
+    'playsinline=1',
+    'controls=0',
+    'rel=0',
+    'loop=1',
+    `playlist=${copy.videoId}`,
+    /* `&amp;` y no `&`: dentro de un atributo HTML el navegador resuelve
+       entidades, y un parámetro que empiece por una (`&copy=`, por ejemplo)
+       se corrompería. */
+  ].join('&amp;');
+
+  /*
+   * La dirección va en `data-src` y no en `src`: el guion la completa con el
+   * `origin` de la página, que YouTube exige. Si el documento se abrió desde el
+   * disco (file://) no hay origen válido —YouTube responde con el error 153— y
+   * entonces ni siquiera se carga el marco: se enseña el panel que lleva a
+   * YouTube. Comprobado: desde una dirección web suena; desde el disco, no.
+   */
   return `
-    <div class="player" id="player">
-      <a class="player__button" href="${copy.songUrl}" target="_blank" rel="noopener noreferrer" aria-label="Escuchar en YouTube">${icon(
-        'note',
-        17,
-      )}</a>
-      <div class="player__meta" data-song="${copy.songUrl}">
-        <p class="player__title">Canción dedicada</p>
-        <p class="player__hint">Toca para escuchar en YouTube</p>
+    <div class="music" id="music">
+      <div class="music__screen">
+        <iframe
+          id="music-frame"
+          title="Música de la dedicatoria"
+          data-src="https://www.youtube.com/embed/${copy.videoId}?${params}"
+          allow="autoplay; encrypted-media"
+        ></iframe>
       </div>
-      <span class="player__icon">${icon('headphones', 17)}</span>
+
+      <div class="player player--live" id="player">
+        <button type="button" class="player__button" id="player-toggle" aria-label="Reproducir la música">
+          <span class="player__ico player__ico--play">${icon('play', 17)}</span>
+          <span class="player__ico player__ico--pause">${icon('pause', 17)}</span>
+        </button>
+        <div class="player__meta">
+          <p class="player__title">Música de la dedicatoria</p>
+          <p class="player__hint" id="player-hint">Pausado</p>
+        </div>
+        <span class="player__icon">${icon('equalizer', 17)}</span>
+      </div>
+
+      <a
+        class="player player--blocked"
+        id="player-blocked"
+        href="${copy.songUrl}"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <span class="player__button player__button--quiet">${icon('noteOff', 17)}</span>
+        <div class="player__meta">
+          <p class="player__title" id="blocked-title">Esta canción no permite sonar aquí</p>
+          <p class="player__hint" id="blocked-hint">Su dueño bloqueó el embebido · Toca para abrirla en YouTube</p>
+        </div>
+        <span class="player__icon">${icon('openOut', 17)}</span>
+      </a>
     </div>`;
 };
 

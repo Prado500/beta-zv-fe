@@ -1,6 +1,9 @@
 import type { ThemePalette } from '../../themePalette';
 import { withAlpha } from '../../themePalette';
 import { edgeCss, textureCss, type ThemeDecor } from '../../themeDecor';
+import { BLOOM_CSS } from '../../bloomArt';
+import { PHRASE_CSS } from '../../phraseLayout';
+import { MEM_CSS } from '../../memoriesLayout';
 
 /**
  * Hoja de estilos completa del documento exportado.
@@ -181,8 +184,8 @@ body {
   backdrop-filter: blur(2px);
   transition: opacity 700ms ease, transform 700ms ease;
 }
-[data-state="blooming"] .envelope,
-[data-state="card"] .envelope {
+/* El sobre se aparta en cuanto deja de ser el momento, sea cual sea el que sigue */
+.stage:not([data-state="envelope"]) .envelope {
   opacity: 0;
   transform: scale(1.1);
   pointer-events: none;
@@ -468,6 +471,76 @@ ${
  * barra siempre que el mensaje era corto. Y toma los colores del tema, no el
  * blanco y el gris pizarra de antes.
  */
+/*
+ * Módulo de música: el video encima, los controles debajo, apilados.
+ *
+ * La pantalla se ve DE VERDAD. Antes aquí no había reproductor: la barra sólo
+ * abría YouTube en otra pestaña. Ahora la canción suena dentro de la carta, y
+ * para eso el marco tiene que ser visible —Chrome y Safari de móvil no dejan
+ * sonar un iframe que consideran oculto.
+ */
+.music {
+  position: relative;
+  z-index: 20;
+  margin: 22px auto 0;
+  width: 88%;
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.music__screen {
+  position: relative;
+  width: 100%;
+  max-width: 280px;
+  aspect-ratio: 16 / 9;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #000;
+  border: 1px solid ${withAlpha(decor.metal, 0.55)};
+  box-shadow: 0 10px 30px -12px ${withAlpha(palette.text, 0.55)};
+}
+.music__screen iframe { display: block; width: 100%; height: 100%; border: 0; }
+
+/*
+ * Si YouTube no deja embeber la canción no hay nada que enseñar, pero el marco
+ * NO se quita del documento: sacarlo lo recargaría. Se recoge a nada.
+ */
+.music.is-blocked .music__screen {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  max-width: none;
+  opacity: 0;
+  pointer-events: none;
+  border: 0;
+  box-shadow: none;
+}
+/*
+ * Los dos paneles se imprimen siempre y aquí se decide cuál se ve. Van con la
+ * clase del módulo por delante a propósito: .player trae su propio
+ * display:flex más abajo en esta hoja, y con un solo selector de clase
+ * ganaría por orden y se verían los dos a la vez.
+ */
+.music .player--blocked { display: none; }
+.music.is-blocked .player--live { display: none; }
+.music.is-blocked .player--blocked { display: flex; }
+/*
+ * El aviso es justo el texto que hay que leer, así que se le deja partir en
+ * varias líneas. Con el recorte de la barra normal quedaba en "La música no
+ * suena en el archi…", que no dice nada. Y en varias líneas la píldora deja de
+ * tener sentido: se redondea como tarjeta.
+ */
+.player--blocked { border-radius: 18px; align-items: flex-start; }
+.player--blocked .player__title,
+.player--blocked .player__hint {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.35;
+}
+
 .player {
   position: relative;
   z-index: 20;
@@ -501,7 +574,20 @@ ${
   text-decoration: none;
 }
 .player__button:hover { transform: scale(1.06); }
-.player__meta { flex: 1; text-align: left; overflow: hidden; cursor: pointer; }
+.player__button:active { transform: scale(0.94); }
+/* El botón vivo es un <button>, no un <a>: hay que desarmar el estilo nativo */
+button.player__button { padding: 0; font: inherit; cursor: pointer; -webkit-appearance: none; appearance: none; }
+/* El de la variante bloqueada no invita a nada: sólo acompaña al aviso */
+.player__button--quiet {
+  background: ${withAlpha(palette.accent, 0.15)};
+  color: var(--accent);
+}
+.player__ico { display: flex; }
+.music:not(.is-playing) .player__ico--pause { display: none; }
+.music.is-playing .player__ico--play { display: none; }
+.player__meta { flex: 1; text-align: left; overflow: hidden; }
+.music .player { margin: 0; width: 100%; }
+.player--blocked { text-decoration: none; }
 .player__title {
   font-size: 11px;
   font-weight: 600;
@@ -520,7 +606,12 @@ ${
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.player__icon { color: var(--accent); opacity: 0.7; flex-shrink: 0; }
+.player__icon { color: var(--accent); opacity: 0.45; flex-shrink: 0; transition: opacity 200ms ease; }
+.music.is-playing .player__icon { animation: eqPulse 1.7s ease-in-out infinite; }
+@keyframes eqPulse {
+  0%, 100% { opacity: 0.9; }
+  50%      { opacity: 0.35; }
+}
 
 /* ---------- Visor de fotos ---------- */
 .lightbox {
@@ -626,9 +717,13 @@ ${
   pointer-events: none;
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));
 }
-[data-state="blooming"] .bloom,
-[data-state="card"] .bloom {
-  animation: flowerBloom 2.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+/*
+ * El estallido ya no arranca al abrir el sobre: ahora es el último momento,
+ * justo antes de la carta, después de descubrir los recuerdos. Lo que sale del
+ * sobre es la floración de tallos.
+ */
+[data-state="burst"] .bloom {
+  animation: flowerBloom 2.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 /* ---------- Fondos ambientales ---------- */
@@ -951,5 +1046,16 @@ ${
   .envelope__seal-inner,
   .envelope__hint { animation: none; }
 }
+
+/* ----------------------------------------------------------------------
+ * Los momentos entre el sobre y la carta.
+ *
+ * Estas tres hojas son LAS MISMAS que usa la app: se importan de
+ * utils/bloomArt, utils/phraseLayout y utils/memoriesLayout. Si una animación
+ * cambia allá, el archivo descargado cambia con ella.
+ * ------------------------------------------------------------------- */
+${BLOOM_CSS}
+${PHRASE_CSS}
+${MEM_CSS}
 `;
 };
