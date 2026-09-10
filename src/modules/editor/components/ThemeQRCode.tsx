@@ -1,178 +1,483 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
-import type { DedicationForm } from '../types';
-import { buildCenterIcon, buildQrPalette } from '../../../utils/qrTheme';
-import { Bow, CornerFlourish, Ornament } from '../../../components/decor';
+import { THEME_PRESETS, type DedicationForm } from '../types';
+import { CENTER_ICON_RATIO, buildQrPalette, buildWingedCenterIcon } from '../../../utils/qrTheme';
 import { decorFor, edgeCss, textureCss } from '../../../utils/themeDecor';
+import { darkenUntilContrast, resolvePalette, withAlpha } from '../../../utils/themePalette';
+import { firstPhrase } from '../../../utils/firstPhrase';
+import { flowersFor } from '../../../utils/themeFlowers';
+import { CornerFlourish } from '../../../components/decor';
+import {
+  CORNER_ANGLE,
+  CORNER_ARC_INNER,
+  CORNER_ARC_OUTER,
+  CORNER_BOX,
+  CORNER_DOTS,
+  CORNER_LEAF,
+  CARD_FLOWERS,
+  DEFAULT_NOTE,
+  SCAN_LINE,
+  fitNote,
+  qrCardMetrics,
+} from '../../../utils/qrCard';
+
+/**
+ * La postal del QR tal como se entrega: papel del tema, filo, flores, "Para"
+ * y "De" con los nombres, la primera frase de la dedicatoria como nota y el
+ * código con el emblema alado en el centro.
+ *
+ * Se pinta dos veces con las mismas medidas —en pantalla con HTML y en el PNG
+ * con canvas—, así que las dos salen iguales. Las medidas y los trazados
+ * viven en `utils/qrCard`.
+ */
 
 interface ThemeQRCodeProps {
   data: DedicationForm;
   cardUrl: string;
-  /** Lado del QR en px. El PNG se exporta al triple para que imprima nítido. */
+  /**
+   * Lado del QR de diseño, en px. NO cambia con la pantalla: el PNG se compone
+   * siempre con esta medida y la postal se encoge por CSS para caber.
+   */
   size?: number;
 }
 
-/** Factor de escala del PNG exportado respecto al QR en pantalla. */
+/** Factor de escala del PNG exportado respecto a la postal de diseño. */
 const EXPORT_SCALE = 3;
+
+const SERIF = '"Playfair Display", Georgia, serif';
+const SCRIPT = '"Great Vibes", "Playfair Display", cursive';
+
+const CORNERS = ['tl', 'tr', 'bl', 'br'] as const;
+
+const CORNER_PLACEMENT: Record<(typeof CORNERS)[number], string> = {
+  tl: 'top-3 left-3',
+  tr: 'top-3 right-3',
+  bl: 'bottom-3 left-3',
+  br: 'bottom-3 right-3',
+};
+
+/**
+ * Encoge la postal hasta que cabe a lo ancho del hueco que le deja el padre.
+ *
+ * Solo mide el ANCHO. El alto no sirve de referencia: quien lo define es la
+ * propia postal, así que medirlo sería morderse la cola. Nunca la agranda: el
+ * diseño está pensado a tamaño natural y estirarlo emborronaría el código.
+ * Donde no existe `ResizeObserver` (jsdom) vale la medida inicial.
+ */
+const useFitScale = (width: number) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const box = ref.current?.parentElement;
+    if (!box) return;
+
+    const measure = () => {
+      const available = box.clientWidth;
+      if (!available) return;
+      setScale(Math.min(1, available / width));
+    };
+
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [width]);
+
+  return { ref, scale };
+};
+
+/** Descarga y decodifica una imagen; `null` si no se pudo. */
+const loadImage = (src: string) =>
+  new Promise<HTMLImageElement | null>((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
 
 /* ---------- Componente ---------- */
 
-export const ThemeQRCode: React.FC<ThemeQRCodeProps> = ({ data, cardUrl, size = 264 }) => {
-  const wrapperRef = useRef<HTMLDivElement>(null);
+export const ThemeQRCode: React.FC<ThemeQRCodeProps> = ({ data, cardUrl, size = 212 }) => {
+  const cardRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
+  const m = useMemo(() => qrCardMetrics(size), [size]);
+  const { ref: fitRef, scale } = useFitScale(m.width);
 
   const decor = decorFor(data.themeId);
-  // La trama se tiñe con la tinta de la tarjeta: en los temas oscuros el fondo
-  // del QR es blanco y el color de texto del tema quedaría invisible.
-  const { qr, icon, texture, edge } = useMemo(() => {
-    const palette = buildQrPalette(data.themeId);
+  const theme = THEME_PRESETS[data.themeId] || THEME_PRESETS.classic;
+
+  const { paper, qr, icon, texture, edge, metalInk } = useMemo(() => {
+    const palette = resolvePalette(theme);
+    const code = buildQrPalette(data.themeId);
     return {
-      qr: palette,
-      icon: buildCenterIcon(data.themeId, palette.fg, palette.bg),
-      texture: textureCss(decor.texture, palette.ink),
+      /* El papel de la postal es el del tema de verdad, también en los
+         oscuros. El código va aparte, en su baldosa clara. */
+      paper: palette,
+      qr: code,
+      icon: buildWingedCenterIcon(data.themeId, code.fg, code.bg, decor.metal),
+      texture: textureCss(decor.texture, palette.text),
       edge: edgeCss(decor.edge, decor.metal),
+      /* Los nombres van en el metal del tema, oscurecido hasta 3:1 contra el
+         papel: el metal puro da ~2:1 y en los temas claros se perdía. En los
+         oscuros el papel es oscuro, así que ahí no hace falta tocarlo. */
+      metalInk: palette.isDark
+        ? decor.metal
+        : darkenUntilContrast(decor.metal, palette.cardBg, 3),
     };
-  }, [data.themeId, decor.texture, decor.edge, decor.metal]);
+  }, [theme, data.themeId, decor.texture, decor.edge, decor.metal]);
 
   const recipient = data.recipient?.trim() || 'ti';
+  const sender = data.sender?.trim() || 'Alguien que te quiere';
+  /** La nota es la primera frase de la dedicatoria: ya la sabe recortar. */
+  const note = firstPhrase(data.message || '') || DEFAULT_NOTE;
+
+  const flowers = flowersFor(data.themeId);
+
+  const iconW = Math.round(size * 0.34);
+  const noteMax = m.width - m.padX * 2;
 
   /**
-   * Compone el PNG: no exporta el canvas pelado, sino el QR sobre su marco,
-   * con zona de silencio y el nombre al pie, listo para imprimir o enviar.
+   * Compone el PNG dibujando la MISMA postal en canvas.
+   *
+   * No se rasteriza el HTML: haría falta una librería. Se repite el dibujo
+   * con las medidas de `qrCardMetrics` y los trazados de `qrCard`, que son
+   * los que usa la postal de pantalla, así que las dos salen iguales. Y se
+   * compone siempre a tamaño de diseño, no al que se esté viendo.
    */
-  const handleDownload = useCallback(async () => {
-    const source = wrapperRef.current?.querySelector('canvas');
+  const download = useCallback(async () => {
+    const source = cardRef.current?.querySelector('canvas');
     if (!source) return;
 
+    const s = EXPORT_SCALE;
+    const canvas = document.createElement('canvas');
+    canvas.width = m.width * s;
+    canvas.height = m.height * s;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(s, s);
+
+    // Las fuentes deben estar listas antes de escribir nada
+    if (document.fonts?.ready) await document.fonts.ready;
+
+    // Papel del tema
+    ctx.fillStyle = paper.cardBg;
+    ctx.fillRect(0, 0, m.width, m.height);
+
+    // Filo interior: el del tema, y un doble filete cuando el tema no trae
+    ctx.strokeStyle = withAlpha(decor.metal, edge ? 0.5 : 0.45);
+    ctx.lineWidth = 1;
+    const inset = Math.round(m.padX * 0.42);
+    ctx.beginPath();
+    ctx.roundRect(inset, inset, m.width - inset * 2, m.height - inset * 2, m.radius * 0.7);
+    ctx.stroke();
+    ctx.strokeStyle = withAlpha(decor.metal, 0.18);
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.roundRect(
+      inset + 3.5,
+      inset + 3.5,
+      m.width - (inset + 3.5) * 2,
+      m.height - (inset + 3.5) * 2,
+      m.radius * 0.6,
+    );
+    ctx.stroke();
+
+    /*
+     * Las flores del tema, en las mismas fracciones que en pantalla.
+     * Hay que esperar a que carguen: `drawImage` con una imagen a medio
+     * descargar no pinta nada y no avisa.
+     */
+    if (flowers.length > 0) {
+      const loaded = await Promise.all(
+        CARD_FLOWERS.map((f) => loadImage(flowers[f.pick % flowers.length])),
+      );
+      loaded.forEach((img, i) => {
+        if (!img) return;
+        const f = CARD_FLOWERS[i];
+        const w = m.width * f.size;
+        const h = (img.height / img.width) * w;
+        const x = m.width * f.x;
+        const y = m.height * f.y;
+        ctx.save();
+        ctx.globalAlpha = f.alpha;
+        // El giro de CSS es sobre el centro del elemento; aquí igual
+        ctx.translate(x + w / 2, y + h / 2);
+        ctx.rotate((f.rot * Math.PI) / 180);
+        ctx.drawImage(img, -w / 2, -h / 2, w, h);
+        ctx.restore();
+      });
+    }
+
+    /** Enredadera de esquina, con el mismo giro que el componente. */
+    const flourish = (corner: keyof typeof CORNER_ANGLE) => {
+      const k = m.corner / CORNER_BOX;
+      const x = corner === 'tl' || corner === 'bl' ? m.cornerInset : m.width - m.cornerInset - m.corner;
+      const y = corner === 'tl' || corner === 'tr' ? m.cornerInset : m.height - m.cornerInset - m.corner;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(k, k);
+      ctx.translate(CORNER_BOX / 2, CORNER_BOX / 2);
+      ctx.rotate((CORNER_ANGLE[corner] * Math.PI) / 180);
+      ctx.translate(-CORNER_BOX / 2, -CORNER_BOX / 2);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = withAlpha(decor.metal, 0.55 * 0.6);
+      ctx.lineWidth = 1;
+      ctx.stroke(new Path2D(CORNER_ARC_OUTER));
+      ctx.strokeStyle = withAlpha(decor.metal, 0.3 * 0.6);
+      ctx.lineWidth = 0.9;
+      ctx.stroke(new Path2D(CORNER_ARC_INNER));
+      ctx.strokeStyle = withAlpha(decor.metal, 0.45 * 0.6);
+      ctx.stroke(new Path2D(CORNER_LEAF));
+      ctx.fillStyle = withAlpha(decor.metal, 0.5 * 0.6);
+      for (const [cx, cy] of CORNER_DOTS) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 1.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    };
+    CORNERS.forEach(flourish);
+
+    const mid = m.width / 2;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+
+    /**
+     * Escribe una línea centrada dentro de la altura que tiene reservada,
+     * como hace `line-height` en el navegador.
+     *
+     * Colocar el texto por su línea base no sirve: la letra manuscrita tiene
+     * unos rasgos descendentes enormes y con la línea base fija se comía la
+     * nota de abajo y el nombre de quien firma se salía por el borde.
+     */
+    const line = (text: string, top: number, height: number) => {
+      const box = ctx.measureText(text);
+      const asc = box.actualBoundingBoxAscent || height * 0.74;
+      const desc = box.actualBoundingBoxDescent || height * 0.26;
+      ctx.fillText(text, mid, top + (height - (asc + desc)) / 2 + asc);
+    };
+
+    let y = m.padTop;
+
+    ctx.fillStyle = withAlpha(paper.text, 0.6);
+    ctx.font = `600 ${m.nameLabel}px ${SERIF}`;
+    line('P A R A', y, m.nameLabel);
+    y += m.nameLabel;
+
+    ctx.fillStyle = metalInk;
+    ctx.font = `${m.nameSize}px ${SCRIPT}`;
+    line(recipient, y, m.nameLine);
+    y += m.nameLine + m.gapAfterName;
+
+    ctx.fillStyle = withAlpha(paper.text, 0.8);
+    ctx.font = `${m.noteSize}px ${SERIF}`;
+    const noteLine = fitNote(note, noteMax, (t) => ctx.measureText(t).width);
+    line(noteLine, y, m.noteLine);
+    line(SCAN_LINE, y + m.noteLine, m.noteLine);
+    y += m.noteLine * 2 + m.gapAfterNote;
+
+    // Baldosa clara del código y el código encima
+    const tile = m.qr + m.tilePad * 2;
+    ctx.fillStyle = qr.bg;
+    ctx.beginPath();
+    ctx.roundRect(m.padX, y, tile, tile, m.tileRadius);
+    ctx.fill();
+    ctx.strokeStyle = withAlpha(decor.metal, 0.4);
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.drawImage(source, m.padX + m.tilePad, y + m.tilePad, m.qr, m.qr);
+    y += tile + m.gapAfterQr;
+
+    ctx.fillStyle = withAlpha(paper.text, 0.6);
+    ctx.font = `600 ${m.fromLabel}px ${SERIF}`;
+    line('D E', y, m.fromLabel);
+    y += m.fromLabel;
+
+    ctx.fillStyle = metalInk;
+    ctx.font = `${m.fromSize}px ${SCRIPT}`;
+    line(sender, y, m.fromLine);
+
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
+    link.download = `qr_${recipient.replace(/\s+/g, '_').toLowerCase()}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [m, paper, qr.bg, decor.metal, edge, metalInk, recipient, sender, note, noteMax, flowers]);
+
+  const handleDownload = useCallback(async () => {
     setDownloading(true);
     try {
-      const pad = 28 * EXPORT_SCALE;
-      const captionBand = 54 * EXPORT_SCALE;
-      const width = source.width + pad * 2;
-      const height = source.height + pad * 2 + captionBand;
-
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      ctx.fillStyle = qr.bg;
-      ctx.fillRect(0, 0, width, height);
-
-      // Filete interior del marco
-      ctx.strokeStyle = qr.frame;
-      ctx.lineWidth = Math.max(1, 1.5 * EXPORT_SCALE);
-      const inset = 10 * EXPORT_SCALE;
-      const radius = 18 * EXPORT_SCALE;
-      ctx.beginPath();
-      ctx.roundRect(inset, inset, width - inset * 2, height - inset * 2, radius);
-      ctx.stroke();
-
-      ctx.drawImage(source, pad, pad);
-
-      // Las fuentes del documento deben estar listas antes de dibujar texto
-      if (document.fonts?.ready) await document.fonts.ready;
-      ctx.fillStyle = qr.ink;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.font = `${22 * EXPORT_SCALE}px "Playfair Display", Georgia, serif`;
-      ctx.fillText(`Para ${recipient}`, width / 2, source.height + pad + captionBand / 2 - 4);
-
-      const link = document.createElement('a');
-      link.href = canvas.toDataURL('image/png');
-      link.download = `qr_${recipient.replace(/\s+/g, '_').toLowerCase()}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      await download();
     } finally {
       setDownloading(false);
     }
-  }, [qr.bg, qr.frame, qr.ink, recipient]);
+  }, [download]);
+
+  const label = (fontSize: number): React.CSSProperties => ({
+    fontSize,
+    lineHeight: `${fontSize}px`,
+    letterSpacing: '0.4em',
+    color: withAlpha(paper.text, 0.6),
+  });
 
   return (
-    <div className="relative flex flex-col items-center gap-4">
-      {/* Halo cálido en el acento del tema, detrás de la tarjeta */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -inset-6 -z-10 rounded-[48px] blur-2xl opacity-70"
-        style={{ background: `radial-gradient(60% 55% at 50% 40%, ${qr.frame}, transparent 70%)` }}
-      />
-
-      {/* Lazo sobre la tarjeta, como una etiqueta de regalo */}
-      <Bow
-        size={98}
-        className="absolute -top-8 left-1/2 -translate-x-1/2 z-20 drop-shadow-[0_8px_14px_rgba(94,10,27,0.32)]"
-      />
-
-      {/* Tarjeta del QR: doble filete, filigrana en las cuatro esquinas */}
-      <div
-        ref={wrapperRef}
-        className="relative rounded-[30px] px-6 pt-8 pb-5 overflow-hidden shadow-[0_26px_56px_-22px_rgba(94,10,27,0.5)]"
-        style={{ backgroundColor: qr.bg, border: `1px solid ${qr.frame}` }}
-      >
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 rounded-[30px]"
+    <div className="flex flex-col items-center gap-4">
+      {/* Ocupa exactamente lo que mide la postal ya encogida, para que el
+          hueco del modal no se descuadre. */}
+      <div ref={fitRef} style={{ width: m.width * scale, height: m.height * scale }} className="shrink-0">
+        <div
+          ref={cardRef}
+          className="relative overflow-hidden shadow-[0_22px_48px_-20px_rgba(94,10,27,0.5)]"
           style={{
-            backgroundImage: texture.backgroundImage,
-            backgroundSize: texture.backgroundSize,
-            opacity: texture.opacity,
+            width: m.width,
+            height: m.height,
+            borderRadius: m.radius,
+            backgroundColor: paper.cardBg,
+            transform: `scale(${scale})`,
+            transformOrigin: 'top left',
           }}
-        />
-        {edge && (
+        >
+          {/* Grano del papel del tema, muy tenue */}
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute inset-2.5 rounded-[22px]"
-            style={{ border: edge.border, boxShadow: edge.boxShadow }}
+            className="pointer-events-none absolute inset-0"
+            style={{
+              backgroundImage: texture.backgroundImage,
+              backgroundSize: texture.backgroundSize,
+              opacity: texture.opacity,
+            }}
           />
-        )}
 
-        <CornerFlourish corner="tl" color={decor.metal} size={46} placement="top-3 left-3" className="opacity-55" />
-        <CornerFlourish corner="tr" color={decor.metal} size={46} placement="top-3 right-3" className="opacity-55" />
-        <CornerFlourish corner="bl" color={decor.metal} size={46} placement="bottom-3 left-3" className="opacity-55" />
-        <CornerFlourish corner="br" color={decor.metal} size={46} placement="bottom-3 right-3" className="opacity-55" />
+          {/* Filo interior: el del tema si lo trae, y si no un doble filete */}
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute"
+            style={{
+              inset: Math.round(m.padX * 0.42),
+              borderRadius: m.radius * 0.7,
+              border: edge?.border ?? `1px solid ${withAlpha(decor.metal, 0.45)}`,
+              boxShadow: edge?.boxShadow ?? `inset 0 0 0 2.5px ${withAlpha(decor.metal, 0.18)}`,
+            }}
+          />
 
-        <div className="relative flex flex-col items-center">
-          <p
-            className="text-[10px] font-bold uppercase tracking-[0.22em] pb-3 opacity-70"
-            style={{ color: qr.ink }}
-          >
-            Escanea para abrirla
-          </p>
+          {/* Las flores del tema, en las bandas sin texto de los costados */}
+          {flowers.length > 0 &&
+            CARD_FLOWERS.map((f, i) => (
+              <img
+                key={i}
+                src={flowers[f.pick % flowers.length]}
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+                className="pointer-events-none absolute select-none"
+                style={{
+                  left: m.width * f.x,
+                  top: m.height * f.y,
+                  width: m.width * f.size,
+                  opacity: f.alpha,
+                  transform: `rotate(${f.rot}deg)`,
+                }}
+              />
+            ))}
 
-          <div className="rounded-md p-1" style={{ boxShadow: `0 0 0 1px ${qr.frame}`, backgroundColor: qr.bg }}>
-            <QRCodeCanvas
-              value={cardUrl}
-              size={size}
-              level="H"
-              marginSize={2}
-              fgColor={qr.fg}
-              bgColor={qr.bg}
-              imageSettings={{
-                src: icon,
-                height: Math.round(size * 0.19),
-                width: Math.round(size * 0.19),
-                excavate: true,
-              }}
+          {CORNERS.map((corner) => (
+            <CornerFlourish
+              key={corner}
+              corner={corner}
+              color={decor.metal}
+              size={m.corner}
+              placement={CORNER_PLACEMENT[corner]}
+              className="opacity-60"
             />
-          </div>
+          ))}
 
-          <Ornament color={decor.metal} motif={decor.motif} width={130} className="opacity-90 mt-3" />
-          <p className="font-script text-[1.7rem] leading-none pt-0.5" style={{ color: qr.ink }}>
-            Para {recipient}
-          </p>
+          <div
+            className="relative h-full flex flex-col items-center text-center"
+            style={{ paddingTop: m.padTop, paddingInline: m.padX }}
+          >
+            <span className="font-serif font-semibold uppercase" style={label(m.nameLabel)}>
+              Para
+            </span>
+            <span
+              className="font-script"
+              style={{ fontSize: m.nameSize, lineHeight: `${m.nameLine}px`, color: metalInk }}
+            >
+              {recipient}
+            </span>
+
+            <span
+              className="font-serif"
+              style={{
+                marginTop: m.gapAfterName,
+                height: m.noteLine * 2,
+                fontSize: m.noteSize,
+                lineHeight: `${m.noteLine}px`,
+                color: withAlpha(paper.text, 0.8),
+              }}
+            >
+              {fitNote(note, noteMax, (t) => t.length * m.noteSize * 0.46)}
+              <br />
+              {SCAN_LINE}
+            </span>
+
+            {/* Baldosa clara del código: en los temas oscuros el papel es
+                oscuro y un QR invertido no lo lee la mitad de los lectores. */}
+            <div
+              style={{
+                marginTop: m.gapAfterNote,
+                padding: m.tilePad,
+                borderRadius: m.tileRadius,
+                backgroundColor: qr.bg,
+                boxShadow: `0 0 0 1px ${withAlpha(decor.metal, 0.4)}`,
+                lineHeight: 0,
+              }}
+            >
+              <QRCodeCanvas
+                value={cardUrl}
+                size={m.qr}
+                level="H"
+                /* 4 módulos de zona de silencio, el estándar. La baldosa clara solo
+                   aporta ~1 y en los temas oscuros el papel de al lado es oscuro. */
+                marginSize={4}
+                fgColor={qr.fg}
+                bgColor={qr.bg}
+                imageSettings={{
+                  src: icon,
+                  width: iconW,
+                  height: Math.round(iconW * CENTER_ICON_RATIO),
+                  excavate: true,
+                }}
+              />
+            </div>
+
+            <span
+              className="font-serif font-semibold uppercase"
+              style={{ ...label(m.fromLabel), marginTop: m.gapAfterQr }}
+            >
+              De
+            </span>
+            <span
+              className="font-script"
+              style={{ fontSize: m.fromSize, lineHeight: `${m.fromLine}px`, color: metalInk }}
+            >
+              {sender}
+            </span>
+          </div>
         </div>
       </div>
 
       <button
         type="button"
-        onClick={handleDownload}
+        onClick={() => void handleDownload()}
         disabled={downloading}
         className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-wine text-white font-semibold text-sm shadow-[0_10px_24px_-10px_rgba(140,17,40,0.8)] hover:bg-primary hover:-translate-y-0.5 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-wait disabled:hover:translate-y-0"
       >
         <span className="material-symbols-outlined text-[18px]">download</span>
-        {downloading ? 'Generando…' : 'Descargar QR (PNG)'}
+        {downloading ? 'Generando…' : 'Descargar postal QR (PNG)'}
       </button>
     </div>
   );

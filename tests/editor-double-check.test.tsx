@@ -25,6 +25,13 @@ vi.mock('../src/modules/editor/components/PhonePreview', () => ({
   PhonePreview: () => null,
 }));
 
+// jsdom no implementa canvas; lo que se comprueba es qué enlace codifica la postal.
+vi.mock('qrcode.react', () => ({
+  QRCodeCanvas: ({ value }: { value: string }) => (
+    <canvas data-testid="qr-canvas" data-value={value} />
+  ),
+}));
+
 vi.mock('../src/modules/editor/services/letters', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/modules/editor/services/letters')>()),
   createLetter: vi.fn(),
@@ -152,9 +159,11 @@ describe('EditorPage · confirmación del correo', () => {
 
     const dialog = await screen.findByRole('dialog', { name: /lista/i });
     expect(dialog.querySelector(`a[href="${READY.publicUrl}"]`)).not.toBeNull();
-    expect(dialog.querySelector<HTMLImageElement>('img[alt="Código QR de la carta"]')?.src).toBe(
-      READY.qrUrl,
+    // La postal del QR se dibuja aquí mismo y codifica el mismo enlace público.
+    expect(dialog.querySelector('[data-testid="qr-canvas"]')?.getAttribute('data-value')).toBe(
+      READY.publicUrl,
     );
+    expect(dialog.textContent).toContain('Escanéalo');
   });
 
   it('si el backend responde 409 el aviso se ve en el modal y este sigue abierto', async () => {

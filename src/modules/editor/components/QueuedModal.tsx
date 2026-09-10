@@ -35,12 +35,12 @@ export const QueuedModal: React.FC<QueuedModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-100 flex items-center justify-center px-4 py-8 bg-wine-deep/55 backdrop-blur-sm"
+      className="modal-backdrop fixed inset-0 z-100 flex items-center justify-center px-4 py-8 bg-wine-deep/55 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="queued-title"
     >
-      <div className="relative w-full max-w-lg bg-white rounded-4xl shadow-2xl border border-wine/15 px-7 py-9 md:px-10 text-center overflow-hidden">
+      <div className="modal-panel relative w-full max-w-lg bg-white rounded-4xl shadow-2xl border border-wine/15 px-7 py-9 md:px-10 text-center overflow-hidden">
         <div className="absolute top-0 inset-x-0 h-1.5 bg-linear-to-r from-wine-deep via-wine to-tertiary" />
         <HeartConfetti count={10} tone="rose" opacity={0.16} className="z-0" />
         <CornerFlourish corner="tl" tone="gold" size={60} className="opacity-70" />

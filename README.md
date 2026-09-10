@@ -80,7 +80,9 @@ src/
 │   ├── auth/               # Sesión: AuthProvider, useAuth, login/logout, menú de usuario
 │   ├── dedications/        # Panel posventa "Mis dedicatorias"
 │   ├── editor/             # Módulo del editor de tarjetas
-│   │   ├── components/     # AnimatedBackground.tsx, PhonePreview.tsx
+│   │   ├── components/     # PhonePreview.tsx (compositor), SongPlayer, ThemeQRCode (postal)
+│   │   │   └── scenes/     # Sobre, floración, frase, recuerdos, estallido y carta (letter/)
+│   │   ├── hooks/          # useLetterEditor, usePhotoUploads, useCardChoreography…
 │   │   ├── page/           # EditorPage.tsx
 │   │   └── types.ts        # Tipados del editor
 │   └── promo/              # Módulo de la Landing Page

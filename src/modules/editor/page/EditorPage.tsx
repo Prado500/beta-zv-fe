@@ -520,21 +520,34 @@ export default function EditorPage() {
                 <CornerFlourish corner="tr" tone="gold" size={44} placement="top-3 right-3" className="opacity-45" />
               </div>
 
-              {/* Halo y rosas de escritorio, sin cambios */}
-              <div
-                className="hidden md:block absolute -inset-x-16 -inset-y-10 pointer-events-none -z-10"
-                aria-hidden="true"
-              >
-                <div className="w-full h-full rounded-[48px] bg-linear-to-b from-blush/70 via-paper-deep/40 to-transparent blur-2xl"></div>
-              </div>
-              <Rose size={104} className="pointer-events-none absolute -left-16 bottom-4 opacity-30 -rotate-[18deg] hidden xl:block" />
-              <Rose size={88} className="pointer-events-none absolute -right-14 bottom-0 opacity-25 rotate-[22deg] hidden xl:block" />
-
               <p className="font-script text-wine/80 text-2xl md:text-3xl leading-none">así la va a recibir</p>
               <Ornament tone="gold" width={132} className="md:hidden mt-1 mb-3 opacity-80" />
               <span className="hidden md:block h-3" />
 
-              <PhonePreview data={values as DedicationForm} />
+              {/*
+                Las rosas cuelgan del teléfono, no de la columna.
+
+                Ancladas a la columna se quedaban en sus extremos, y al
+                encoger la maqueta se alejaron hasta parecer dos adornos
+                sueltos en la página. Este envoltorio mide lo que el teléfono
+                —`.phone-shell` lleva su ancho en px—, así que los márgenes
+                negativos se cuentan desde el borde del aparato: cada rosa
+                asoma por un costado y se mete un poco por detrás.
+              */}
+              <div className="relative">
+                {/* Halo: también colgado del teléfono. Sobre la columna se
+                    salía 32px por cada lado y dejaba barra de desplazamiento
+                    horizontal a 1280px de ancho. */}
+                <div
+                  className="hidden md:block absolute -inset-x-16 -inset-y-10 pointer-events-none -z-10"
+                  aria-hidden="true"
+                >
+                  <div className="w-full h-full rounded-[48px] bg-linear-to-b from-blush/70 via-paper-deep/40 to-transparent blur-2xl"></div>
+                </div>
+                <Rose size={104} className="pointer-events-none absolute -left-20 bottom-6 opacity-30 -rotate-[18deg] hidden xl:block" />
+                <Rose size={88} className="pointer-events-none absolute -right-16 bottom-2 opacity-25 rotate-[22deg] hidden xl:block" />
+                <PhonePreview data={values as DedicationForm} />
+              </div>
             </div>
           </section>
         </div>
@@ -569,7 +582,6 @@ export default function EditorPage() {
       <SuccessModal
         open={outcome?.mode === 'ready'}
         publicUrl={outcome?.mode === 'ready' ? outcome.publicUrl : ''}
-        qrUrl={outcome?.mode === 'ready' ? outcome.qrUrl : null}
         recipientEmail={values.recipientEmail}
         letter={values as DedicationForm}
         onClose={() => {
