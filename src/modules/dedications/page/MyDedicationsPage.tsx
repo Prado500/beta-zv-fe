@@ -22,9 +22,11 @@ import type { Dedication } from '../services/dedications';
  * de compra. Así hay una sola sonda (el listado) y una sola puerta, también
  * cuando la sesión caduca a medio uso o se cierra desde la cabecera.
  *
- * Los modales (puerta, QR y reenvío) se montan solo mientras están abiertos,
- * como en el editor: cada apertura nace con los datos de la fila que la abrió y
- * no hay nada que sincronizar al cambiar de tarjeta.
+ * Los modales (puerta, postal del QR y reenvío) se montan solo mientras están
+ * abiertos, como en el editor: cada apertura nace con los datos de la fila que
+ * la abrió y no hay nada que sincronizar al cambiar de tarjeta. La postal lleva
+ * además una `key` por compra: si la fila cambiara sin pasar por cerrar, se
+ * remonta entera y nada de la carta anterior se queda en la siguiente.
  */
 
 const Loading = () => (
@@ -200,7 +202,9 @@ export default function MyDedicationsPage() {
 
       {gated && <SessionGate onLoggedIn={panel.reload} />}
 
-      {qrFor && <QrModal dedication={qrFor} onClose={() => setQrFor(null)} />}
+      {qrFor && (
+        <QrModal key={qrFor.purchaseId} dedication={qrFor} onClose={() => setQrFor(null)} />
+      )}
 
       {resendFor && resendFor.letterId && (
         <ResendModal
