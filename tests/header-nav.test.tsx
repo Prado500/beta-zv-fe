@@ -25,7 +25,7 @@ describe('Header · enlace a "Mis Dedicatorias"', () => {
     renderHeader();
     expect(panelLinks()).toHaveLength(1);
 
-    await user.click(screen.getByRole('button', { name: /Toggle Menu/i }));
+    await user.click(screen.getByRole('button', { name: /Abrir menú|Cerrar menú/ }));
     expect(panelLinks()).toHaveLength(2);
     expect(panelLinks()[1].getAttribute('href')).toBe('/mis-dedicatorias');
 

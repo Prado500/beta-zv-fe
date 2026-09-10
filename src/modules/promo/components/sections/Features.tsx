@@ -7,7 +7,7 @@ import { LANDING_VIDEOS } from '../../../../config/videos';
 
 export const Features: React.FC = () => {
   return (
-    <section className="py-14 md:py-section-gap relative overflow-hidden">
+    <section id="cupos" className="py-14 md:py-section-gap relative overflow-hidden scroll-mt-32">
       <div className="absolute top-0 inset-x-0 h-px rule-gold"></div>
       <HeartConfetti count={6} tone="rose" opacity={0.12} className="z-0" />
 
@@ -26,9 +26,13 @@ export const Features: React.FC = () => {
                TENDENCIA NACIONAL
              </span>
              <h3 className="text-xl md:text-2xl font-bold mb-2">
-               Cupos limitados a {formatSpots(SPOTS.total)} unidades
+               La pregunta no es si le va a gustar
              </h3>
-             <p className="text-on-surface-variant text-sm">Para mantener la exclusividad y la velocidad de los videos, hemos limitado el acceso. Cuando se acaben, se acabaron.</p>
+             <p className="text-on-surface-variant text-sm">
+               Es si ella va a ser parte de la dedicación eterna, o se va a enterar por redes de que
+               otras sí lo fueron. Son {formatSpots(SPOTS.total)} espacios y cuando se acaben, se
+               acabaron.
+             </p>
 
              <SpotsMeter className="mt-5" />
           </div>

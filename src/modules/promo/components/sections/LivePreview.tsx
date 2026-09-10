@@ -17,7 +17,7 @@ export const LivePreview: React.FC = () => {
   const [mobileTab, setMobileTab] = useState<'edit' | 'preview'>('edit');
 
   return (
-    <section className="py-14 md:py-section-gap relative overflow-hidden" id="preview">
+    <section className="py-14 md:py-section-gap relative overflow-hidden scroll-mt-32" id="preview">
       <div 
         className="absolute inset-0 opacity-[0.03] pointer-events-none" 
         style={{ backgroundImage: 'radial-gradient(#b90538 1px, transparent 1px)', backgroundSize: '24px 24px' }} 
@@ -29,10 +29,16 @@ export const LivePreview: React.FC = () => {
         
         <div className="text-center mb-10 md:mb-16">
           <h2 className="text-3xl md:text-5xl font-black text-on-background mb-3 tracking-tight">
-            Tú tienes el{' '}
-            <span className="font-script font-normal text-wine text-[1.35em] leading-none">control total</span>
+            Todo lo que ella{' '}
+            <span className="font-script font-normal text-wine text-[1.35em] leading-none">va a vivir</span>
           </h2>
-          <Ornament tone="gold" className="mx-auto mb-8" />
+          <Ornament tone="gold" className="mx-auto mb-5" />
+          <p className="max-w-2xl mx-auto text-base md:text-lg text-on-surface-variant font-medium leading-relaxed mb-8">
+            Todo lo que necesitan para desconectarse del mundo, en una sola pantalla: una tarjeta
+            física que se siente tan cuidada como lo que sienten el uno por el otro, y los recuerdos
+            que ya tienen, contando la historia que solo ustedes conocen. No vas a tener que pensar
+            en nada más. Ya está resuelto.
+          </p>
           <PhotoFrame tilt={1.5} tape="left" className="max-w-2xl mx-auto mb-10">
             <div className="aspect-video">
               <YouTubeFacade videoId={LANDING_VIDEOS.demo} title="Demostración" />

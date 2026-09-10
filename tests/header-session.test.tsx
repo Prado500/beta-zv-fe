@@ -26,7 +26,7 @@ const renderHeader = (auth: AuthSnapshot, onSignIn = vi.fn()) => {
 const signInButtons = () => screen.queryAllByRole('button', { name: /Iniciar sesión/ });
 const accountButton = () => screen.queryByRole('button', { name: /Tu cuenta/ });
 const menu = () => screen.queryByRole('menu');
-const mobileToggle = () => screen.getByRole('button', { name: /Toggle Menu/i });
+const mobileToggle = () => screen.getByRole('button', { name: /Abrir menú|Cerrar menú/ });
 
 beforeEach(() => {
   vi.mocked(logout).mockReset();
