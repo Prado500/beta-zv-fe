@@ -40,6 +40,8 @@ const describePlayerError = (code: number | null): string => {
     case 101:
     case 150:
       return 'Quien subió el vídeo no permite reproducirlo fuera de YouTube.';
+    case 153:
+      return 'YouTube no pudo identificar esta página. Ábrela en tu navegador y vuelve a intentarlo.';
     default:
       return 'YouTube no pudo reproducir la canción en esta página.';
   }

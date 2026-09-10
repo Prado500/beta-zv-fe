@@ -24,7 +24,7 @@ describe('YouTubeFacade', () => {
     );
   });
 
-  it('al tocar monta el iframe con autoplay, inline y sin cookies; el botón desaparece', async () => {
+  it('al tocar monta el iframe con autoplay, inline y su origin; el botón desaparece', async () => {
     const user = setupUser();
     render(<YouTubeFacade videoId={ID} title="Demostración" />);
 
@@ -32,12 +32,21 @@ describe('YouTubeFacade', () => {
 
     const frame = iframe();
     expect(frame?.getAttribute('src')).toBe(
-      `https://www.youtube-nocookie.com/embed/${ID}?autoplay=1&playsinline=1&rel=0`,
+      `https://www.youtube.com/embed/${ID}?autoplay=1&playsinline=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`,
     );
     expect(frame?.getAttribute('title')).toBe('Demostración');
     expect(frame?.getAttribute('allow')).toContain('autoplay');
     expect(frame?.className).not.toContain('hidden');
     expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('el iframe fuerza el envío del Referer aunque el hosting lo suprima', async () => {
+    const user = setupUser();
+    render(<YouTubeFacade videoId={ID} title="Demostración" />);
+
+    await user.click(screen.getByRole('button', { name: 'Reproducir: Demostración' }));
+
+    expect(iframe()?.getAttribute('referrerpolicy')).toBe('strict-origin-when-cross-origin');
   });
 
   it('si el vídeo no tiene miniatura en máxima resolución, cae a la estándar', () => {

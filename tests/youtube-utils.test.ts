@@ -49,11 +49,18 @@ describe('getYouTubeId', () => {
 });
 
 describe('constructores de URL', () => {
-  it('el embed va por youtube-nocookie y solo lleva los parámetros pedidos', () => {
-    expect(youtubeEmbedUrl('2Vv-BfVoq4g')).toBe('https://www.youtube-nocookie.com/embed/2Vv-BfVoq4g');
+  it('el embed va por www.youtube.com, con los parámetros pedidos y siempre el origin', () => {
+    const origin = encodeURIComponent(window.location.origin);
+    expect(youtubeEmbedUrl('2Vv-BfVoq4g')).toBe(`https://www.youtube.com/embed/2Vv-BfVoq4g?origin=${origin}`);
     expect(youtubeEmbedUrl('2Vv-BfVoq4g', { autoplay: 1, playsinline: 1, rel: 0 })).toBe(
-      'https://www.youtube-nocookie.com/embed/2Vv-BfVoq4g?autoplay=1&playsinline=1&rel=0',
+      `https://www.youtube.com/embed/2Vv-BfVoq4g?autoplay=1&playsinline=1&rel=0&origin=${origin}`,
     );
+  });
+
+  it('el origin es el de la página que incrusta y no queda rastro de nocookie', () => {
+    const url = youtubeEmbedUrl('2Vv-BfVoq4g');
+    expect(url).toContain(`origin=${encodeURIComponent(window.location.origin)}`);
+    expect(url).not.toContain('youtube-nocookie');
   });
 
   it('miniatura y página del vídeo', () => {

@@ -43,11 +43,19 @@ export const YouTubeFacade: React.FC<YouTubeFacadeProps> = ({
 
   if (playing) {
     return (
+      /*
+        `referrerPolicy` va en el propio iframe y no se hereda de la página:
+        Azure Static Web Apps responde con `Referrer-Policy: same-origin` si no
+        se le dice otra cosa, y con eso YouTube no recibe `Referer` y muestra
+        "Error de configuración (153)". El atributo del elemento manda sobre la
+        política del documento para esta petición.
+      */
       <iframe
         src={youtubeEmbedUrl(videoId, { autoplay: 1, playsinline: 1, rel: 0 })}
         title={title}
         className={`block h-full w-full border-0 ${className}`}
         allow="autoplay; encrypted-media; picture-in-picture"
+        referrerPolicy="strict-origin-when-cross-origin"
         allowFullScreen
       />
     );

@@ -59,8 +59,12 @@ export type ThumbnailQuality = 'maxres' | 'hq' | 'mq';
 export const youtubeThumbnail = (videoId: string, quality: ThumbnailQuality = 'hq'): string =>
   `https://i.ytimg.com/vi/${videoId}/${quality}default.jpg`;
 
-/** Modo de privacidad mejorada: no deja cookies hasta que alguien reproduce. */
-export const YOUTUBE_EMBED_HOST = 'https://www.youtube-nocookie.com';
+/**
+ * Dominio del reproductor embebido. Se probó `youtube-nocookie.com` y se
+ * descartó: frente a las licencias y al `Referer` se comporta exactamente
+ * igual que `www.youtube.com`, y solo añadía una variable al diagnóstico.
+ */
+export const YOUTUBE_EMBED_HOST = 'https://www.youtube.com';
 
 export const YOUTUBE_IFRAME_API_URL = 'https://www.youtube.com/iframe_api';
 
@@ -72,12 +76,19 @@ export interface EmbedParams {
   rel?: 0 | 1;
 }
 
-/** URL del iframe clásico, sin API, para las fachadas de la landing. */
+/**
+ * URL del iframe clásico, sin API, para las fachadas de la landing.
+ *
+ * Lleva siempre `origin`: es la identificación que YouTube acepta cuando el
+ * `Referer` no llega —navegadores embebidos en apps, o un hosting que manda
+ * `Referrer-Policy: same-origin`— y sin la cual responde "Error 153".
+ */
 export const youtubeEmbedUrl = (videoId: string, params: EmbedParams = {}): string => {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined) query.set(key, String(value));
   }
+  if (typeof window !== 'undefined') query.set('origin', window.location.origin);
   const suffix = query.toString();
   return `${YOUTUBE_EMBED_HOST}/embed/${videoId}${suffix ? `?${suffix}` : ''}`;
 };
