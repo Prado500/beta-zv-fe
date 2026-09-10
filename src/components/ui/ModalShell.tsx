@@ -24,13 +24,14 @@ interface ModalShellProps {
   onClose?: () => void;
   /** Mientras es `true`, no se puede cerrar por ningún camino. */
   busy?: boolean;
-  size?: 'md' | 'lg';
+  /** `xl` es para los de dos columnas, como la postal del QR junto a su enlace. */
+  size?: 'md' | 'lg' | 'xl';
   /** Clases extra del panel (`text-center`, por ejemplo). */
   className?: string;
   children: ReactNode;
 }
 
-const WIDTH = { md: 'max-w-md', lg: 'max-w-lg' } as const;
+const WIDTH = { md: 'max-w-md', lg: 'max-w-lg', xl: 'max-w-3xl' } as const;
 
 export const ModalShell: React.FC<ModalShellProps> = ({
   labelledBy,

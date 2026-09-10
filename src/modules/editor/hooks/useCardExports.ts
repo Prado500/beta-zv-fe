@@ -6,13 +6,23 @@ import { downloadCardHtml } from '../../../utils/export';
 /**
  * ViewModel de "Entregarla en mano": la carta en HTML y la postal del QR.
  *
- * El modal solo pinta dos botones; aquí vive lo que pasa al pulsarlos. Las dos
- * descargas se componen en el navegador —la carta con las fotos y las flores
- * incrustadas, la postal en canvas— y ninguna toca el backend. Un cerrojo
- * síncrono evita que un doble clic componga dos archivos a la vez.
+ * Quien lo monta solo pinta botones; aquí vive lo que pasa al pulsarlos. Las
+ * dos descargas se componen en el navegador —la carta con las fotos y las
+ * flores incrustadas, la postal en canvas— y un cerrojo síncrono evita que un
+ * doble clic componga dos archivos a la vez.
+ *
+ * La carta puede llegar hecha o por pedir. En el editor ya está en el
+ * formulario; en "Mis dedicatorias" el listado no la trae y hay que pedirla al
+ * backend justo antes de componer el archivo. Por eso se acepta también una
+ * función que la resuelva. Se llama dentro del cerrojo, así que el botón sigue
+ * ocupado mientras la carta viaja, y si pedirla falla se cuenta como un fallo
+ * de la descarga, que es lo que la persona pulsó.
  */
 
 export type ExportKind = 'html' | 'postcard';
+
+/** La carta en mano, o la promesa de conseguirla al pulsar. */
+export type LetterSource = DedicationForm | (() => Promise<DedicationForm>);
 
 export interface CardExports {
   /** Ref para la postal: es ella quien sabe componer su propio PNG. */
@@ -29,7 +39,7 @@ const FAILED: Record<ExportKind, string> = {
   postcard: 'No pudimos generar la postal. Inténtalo de nuevo.',
 };
 
-export const useCardExports = (letter: DedicationForm): CardExports => {
+export const useCardExports = (letter: LetterSource): CardExports => {
   const postcardRef = useRef<ThemeQRCodeHandle>(null);
   const [busy, setBusy] = useState<ExportKind | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +60,14 @@ export const useCardExports = (letter: DedicationForm): CardExports => {
     }
   }, []);
 
-  const downloadHtml = useCallback(() => run('html', () => downloadCardHtml(letter)), [run, letter]);
+  const downloadHtml = useCallback(
+    () =>
+      run('html', async () => {
+        const data = typeof letter === 'function' ? await letter() : letter;
+        await downloadCardHtml(data);
+      }),
+    [run, letter],
+  );
 
   const downloadPostcard = useCallback(
     () =>
