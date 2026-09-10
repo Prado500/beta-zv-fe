@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { CornerFlourish, HeartConfetti, Ornament, Rose } from '../../../components/decor';
 import { ThemeQRCode } from './ThemeQRCode';
+import { useCardExports } from '../hooks/useCardExports';
 import type { DedicationForm } from '../types';
 
 /**
@@ -10,9 +11,10 @@ import type { DedicationForm } from '../types';
  * modo asíncrono la respuesta es `202` y quien se muestra es `QueuedModal`: esa
  * decisión la toma el código de estado, no esta pantalla.
  *
- * La postal del QR se dibuja aquí, con el tema y los nombres de la carta,
- * apuntando al mismo enlace público que viaja en el correo. Es la misma postal
- * que se descarga en PNG y la que se entrega en mano.
+ * Dos columnas: a la izquierda el enlace, el acuse del correo y las descargas
+ * para entregarla en mano; a la derecha la postal del QR con el tema y los
+ * nombres de la carta. Las descargas las gobierna `useCardExports`: aquí no
+ * hay más que botones.
  */
 
 interface SuccessModalProps {
@@ -29,6 +31,9 @@ type CopyState = 'idle' | 'copied' | 'failed';
 const LABEL =
   'flex items-center gap-1.5 text-[10px] font-bold text-wine/75 uppercase tracking-wider mb-1';
 
+const GHOST =
+  'h-11 inline-flex items-center justify-center gap-1.5 px-3 rounded-lg border-[1.5px] border-wine/30 text-wine font-semibold text-[13px] hover:bg-blush/70 hover:border-wine transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-wait';
+
 export const SuccessModal: React.FC<SuccessModalProps> = ({
   open,
   publicUrl,
@@ -39,6 +44,8 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
   const [copy, setCopy] = useState<CopyState>('idle');
   const closeButton = useRef<HTMLButtonElement>(null);
   const copyTimer = useRef<number | null>(null);
+  // El ref de la postal va aparte del estado: el estado se lee al pintar, el ref no.
+  const { postcardRef, busy, error, downloadHtml, downloadPostcard } = useCardExports(letter);
 
   useEffect(() => {
     if (open) closeButton.current?.focus();
@@ -145,7 +152,13 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
             <div className="modal-stagger-2 flex items-center justify-center md:order-last">
               {/* Tope de ancho: la postal se encoge sola hasta caber aquí */}
               <div className="w-full max-w-[260px] md:max-w-[300px] mx-auto shrink-0">
-                <ThemeQRCode data={letter} cardUrl={publicUrl} size={212} />
+                <ThemeQRCode
+                  ref={postcardRef}
+                  data={letter}
+                  cardUrl={publicUrl}
+                  size={212}
+                  showDownload={false}
+                />
               </div>
             </div>
 
@@ -155,26 +168,15 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
                   <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>
                     favorite
                   </span>
-                  Tu dedicatoria está lista
+                  Tu carta está lista
                 </span>
 
                 <h2 id="success-title" className="font-headline-md text-xl md:text-2xl text-on-background">
-                  ¡Tu carta está{' '}
-                  <span className="font-script font-normal text-wine text-[1.4em] leading-none">lista</span>!
+                  Ya puedes{' '}
+                  <span className="font-script font-normal text-wine text-[1.4em] leading-none">compartirla</span>
                 </h2>
                 <Ornament tone="gold" width={150} className="mt-2" />
               </header>
-
-              <p className="font-body-md text-sm text-on-surface-variant leading-relaxed">
-                {recipientEmail ? (
-                  <>
-                    También la enviamos a <strong className="text-wine">{recipientEmail}</strong>, con el
-                    código QR y el archivo descargable.
-                  </>
-                ) : (
-                  'Ya puedes compartirla.'
-                )}
-              </p>
 
               {/* Enlace */}
               <section>
@@ -210,6 +212,57 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
                     </a>
                   )}
                 </p>
+              </section>
+
+              {/* Acuse del correo */}
+              <p className="font-body-md text-sm text-on-surface-variant leading-relaxed">
+                {recipientEmail ? (
+                  <>
+                    Tu carta ha sido enviada exitosamente a:{' '}
+                    <strong className="text-wine break-all">{recipientEmail}</strong>
+                  </>
+                ) : (
+                  'Tu carta ya está publicada.'
+                )}
+              </p>
+
+              <div className="h-px rule-gold shrink-0"></div>
+
+              {/* Descargas: la carta y la postal del QR, una al lado de la otra */}
+              <section>
+                <span className={LABEL}>
+                  <span className="material-symbols-outlined text-[15px]">draft</span>
+                  Entregarla en mano
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void downloadHtml()}
+                    disabled={busy !== null}
+                    className={GHOST}
+                  >
+                    <span className="material-symbols-outlined text-[16px]">description</span>
+                    {busy === 'html' ? 'Generando…' : 'Carta HTML'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void downloadPostcard()}
+                    disabled={busy !== null}
+                    className={GHOST}
+                  >
+                    <span className="material-symbols-outlined text-[16px]">qr_code_2</span>
+                    {busy === 'postcard' ? 'Generando…' : 'Postal QR'}
+                  </button>
+                </div>
+                <p className="text-[11px] mt-1 text-wine/60">
+                  La carta abre sola en cualquier navegador, sin internet. La postal sale en PNG,
+                  lista para imprimir.
+                </p>
+                {error && (
+                  <p className="text-xs text-error font-medium mt-1" role="alert">
+                    {error}
+                  </p>
+                )}
               </section>
 
               <div className="h-px rule-gold shrink-0"></div>

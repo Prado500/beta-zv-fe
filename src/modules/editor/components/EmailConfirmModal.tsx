@@ -1,23 +1,31 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { CornerFlourish, Ornament } from '../../../components/decor';
 import { fieldClass } from '../../../components/ui/formStyles';
+import { useCountdown } from '../../../utils/useCountdown';
 
 /**
- * Última parada antes de mandar la carta: confirmar el correo.
+ * Última parada antes de mandar la carta: confirmar el correo, con freno.
  *
  * No se pide escribirlo dos veces —nadie relee lo que acaba de teclear; se copia
  * y se pega, y el error de tipeo se duplica intacto—. Se le enseña escrito, se
  * dice exactamente qué va a llegar ahí y se deja corregirlo en el sitio.
  *
+ * **Los tres segundos son el punto.** Quien viene en piloto automático de dar a
+ * "Siguiente" se encuentra con un botón que no responde y, durante ese rato, lo
+ * único que puede hacer es leer su propio correo y el aviso de que la carta ya
+ * no se podrá editar. Es el mismo freno que lleva el alta de la compra.
+ *
  * Es bloqueante a propósito: el correo con el QR, el enlace y el archivo sale
  * una sola vez y a una dirección que ya no se puede cambiar.
  *
- * **Se monta solo mientras está abierto**, y no lleva `open`. El correo editable
- * arranca del que trae la carta, y copiar una prop al estado con un efecto deja
- * un fotograma en el que el modal dice "A esta dirección ()": justo la frase que
- * tiene que dar confianza, vacía. Montando en cada apertura, `useState` ya nace
- * con el valor bueno y no hay nada que sincronizar.
+ * **Se monta solo mientras está abierto**, y no lleva `open`. Así el correo
+ * editable nace con el valor correcto sin sincronizar nada, y la cuenta
+ * regresiva vuelve a arrancar cada vez que se abre: cerrar y reabrir no sirve
+ * para saltarse el freno.
  */
+
+/** Segundos que el botón de confirmar permanece bloqueado al abrirse. */
+export const CONFIRM_DELAY_SECONDS = 3;
 
 interface EmailConfirmModalProps {
   /** Correo tal como está en el formulario al pulsar "Guardar y compartir". */
@@ -36,10 +44,13 @@ export const EmailConfirmModal: React.FC<EmailConfirmModalProps> = ({
   onCancel,
 }) => {
   const [value, setValue] = useState(email);
-  const confirmButton = useRef<HTMLButtonElement>(null);
+  const field = useRef<HTMLInputElement>(null);
+  const left = useCountdown(CONFIRM_DELAY_SECONDS);
+  const locked = left > 0;
 
+  // El foco va al correo, que es lo que hay que revisar; el botón aún no responde.
   useEffect(() => {
-    confirmButton.current?.focus();
+    field.current?.focus();
   }, []);
 
   useEffect(() => {
@@ -50,6 +61,13 @@ export const EmailConfirmModal: React.FC<EmailConfirmModalProps> = ({
     return () => window.removeEventListener('keydown', onKey);
   }, [submitting, onCancel]);
 
+  const confirm = () => {
+    // El Enter respeta el bloqueo igual que el ratón; si no, el freno duraría
+    // lo que tarda alguien en apoyar el meñique en la tecla.
+    if (locked || submitting) return;
+    onConfirm(value.trim());
+  };
+
   return (
     <div
       className="modal-backdrop fixed inset-0 z-100 flex items-center justify-center px-4 py-8 bg-wine-deep/55 backdrop-blur-sm"
@@ -57,7 +75,14 @@ export const EmailConfirmModal: React.FC<EmailConfirmModalProps> = ({
       aria-modal="true"
       aria-labelledby="confirm-email-title"
     >
-      <div className="modal-panel relative w-full max-w-md bg-white rounded-4xl shadow-2xl border border-wine/15 px-7 py-8 md:px-9 overflow-hidden">
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          confirm();
+        }}
+        noValidate
+        className="modal-panel relative w-full max-w-md bg-white rounded-4xl shadow-2xl border border-wine/15 px-7 py-8 md:px-9 overflow-hidden"
+      >
         <div className="absolute top-0 inset-x-0 h-1.5 bg-linear-to-r from-wine-deep via-wine to-tertiary" />
         <CornerFlourish corner="tl" tone="gold" size={54} className="opacity-65" />
         <CornerFlourish corner="br" tone="gold" size={54} className="opacity-65" />
@@ -84,9 +109,14 @@ export const EmailConfirmModal: React.FC<EmailConfirmModalProps> = ({
           <Ornament tone="gold" width={150} className="mx-auto mt-1 mb-3" />
 
           <p className="font-body-md text-sm text-on-surface-variant leading-relaxed">
-            ¿Estás seguro que este es el correo correcto? A esta dirección (
-            <strong className="text-wine break-all">{value}</strong>) llegará el código QR, el
-            enlace y el archivo descargable. Revisa que no haya errores de tipeo.
+            Verifica que este correo sea correcto:{' '}
+            <strong className="text-wine break-all">{value}</strong>. Asegúrate de que tu carta esté
+            exactamente como deseas. Una vez enviada, <strong className="text-wine">NO</strong> podrás
+            editarla.
+          </p>
+          <p className="font-body-md text-xs text-on-surface-variant/90 leading-relaxed mt-2">
+            A esta dirección llegará el código QR, el enlace y el archivo descargable. Revisa que
+            no haya errores de tipeo.
           </p>
 
           <div className="w-full mt-5 text-left">
@@ -97,6 +127,7 @@ export const EmailConfirmModal: React.FC<EmailConfirmModalProps> = ({
               Corrígelo aquí si hace falta
             </label>
             <input
+              ref={field}
               id="confirm-email"
               type="email"
               value={value}
@@ -116,14 +147,14 @@ export const EmailConfirmModal: React.FC<EmailConfirmModalProps> = ({
 
           <div className="mt-6 w-full flex flex-col gap-2.5">
             <button
-              ref={confirmButton}
-              type="button"
-              onClick={() => onConfirm(value.trim())}
-              disabled={submitting}
-              className="w-full py-3.5 rounded-full bg-wine text-white font-semibold text-sm shadow-lg hover:bg-primary transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:cursor-wait disabled:opacity-70"
+              type="submit"
+              disabled={locked || submitting}
+              className="w-full py-3.5 rounded-full bg-wine text-white font-semibold text-sm shadow-lg hover:bg-primary transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-wine"
             >
-              {submitting ? 'Enviando tu carta…' : 'Sí, es correcto'}
-              <span className="material-symbols-outlined text-[18px]">check</span>
+              {submitting ? 'Enviando tu carta…' : locked ? `Espera ${left}…` : 'Sí, es correcto'}
+              <span className="material-symbols-outlined text-[18px]">
+                {locked && !submitting ? 'hourglass_top' : 'check'}
+              </span>
             </button>
             <button
               type="button"
@@ -134,8 +165,16 @@ export const EmailConfirmModal: React.FC<EmailConfirmModalProps> = ({
               No, quiero revisarlo
             </button>
           </div>
+
+          {/*
+            El contador vive en la etiqueta del botón, que es donde se mira.
+            Anunciar cada tic por voz sería un martilleo; se anuncia el desenlace.
+          */}
+          <p className="sr-only" aria-live="polite">
+            {locked ? '' : 'Ya puedes confirmar.'}
+          </p>
         </div>
-      </div>
+      </form>
     </div>
   );
 };

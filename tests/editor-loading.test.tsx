@@ -3,13 +3,16 @@ import { screen, waitFor } from '@testing-library/react';
 import { ApiError } from '../src/utils/api';
 import { createLetter, type LetterOutcome } from '../src/modules/editor/services/letters';
 import {
+  confirm,
   confirmButton,
   fillStepOne,
   goToStepThree,
+  installFreezeClock,
   renderEditor,
+  setupEditorUser,
   submitButton,
 } from './editorHarness';
-import { deferred, setupUser } from './testUtils';
+import { deferred } from './testUtils';
 
 /**
  * Protección de los IOPS mientras la petición está en vuelo.
@@ -31,8 +34,10 @@ vi.mock('../src/modules/editor/services/letters', async (importOriginal) => ({
 
 const QUEUED = { mode: 'queued', message: 'En cola.' } as const;
 
+installFreezeClock();
+
 /** Deja el editor con la confirmación abierta y una petición congelada. */
-const freeze = async (user: ReturnType<typeof setupUser>) => {
+const freeze = async (user: ReturnType<typeof setupEditorUser>) => {
   const pending = deferred<LetterOutcome>();
   vi.mocked(createLetter).mockReturnValue(pending.promise);
 
@@ -41,14 +46,14 @@ const freeze = async (user: ReturnType<typeof setupUser>) => {
   await goToStepThree(user);
   await user.click(submitButton());
   await screen.findByRole('dialog');
-  await user.click(confirmButton());
+  await confirm(user);
 
   return pending;
 };
 
 describe('EditorPage · botones durante la espera', () => {
   it('el botón de confirmar se bloquea mientras la API no responde', async () => {
-    const user = setupUser();
+    const user = setupEditorUser();
     const pending = await freeze(user);
 
     await waitFor(() => expect(confirmButton().disabled).toBe(true));
@@ -58,7 +63,7 @@ describe('EditorPage · botones durante la espera', () => {
   });
 
   it('el botón de la página también queda deshabilitado', async () => {
-    const user = setupUser();
+    const user = setupEditorUser();
     const pending = await freeze(user);
 
     await waitFor(() => expect(submitButton().disabled).toBe(true));
@@ -68,7 +73,7 @@ describe('EditorPage · botones durante la espera', () => {
   });
 
   it('tampoco se puede cancelar a mitad de envío', async () => {
-    const user = setupUser();
+    const user = setupEditorUser();
     const pending = await freeze(user);
 
     const cancel = screen.getByRole('button', {
@@ -80,7 +85,7 @@ describe('EditorPage · botones durante la espera', () => {
   });
 
   it('doble clic sobre "Sí, es correcto": una sola carta', async () => {
-    const user = setupUser();
+    const user = setupEditorUser();
     const pending = await freeze(user);
 
     await waitFor(() => expect(confirmButton().disabled).toBe(true));
@@ -93,7 +98,7 @@ describe('EditorPage · botones durante la espera', () => {
   });
 
   it('al responder, la confirmación se cierra y aparece el acuse', async () => {
-    const user = setupUser();
+    const user = setupEditorUser();
     const pending = await freeze(user);
 
     pending.resolve(QUEUED);
@@ -104,7 +109,7 @@ describe('EditorPage · botones durante la espera', () => {
   });
 
   it('si la API falla, los botones vuelven a la vida para reintentar', async () => {
-    const user = setupUser();
+    const user = setupEditorUser();
     const pending = await freeze(user);
 
     await waitFor(() => expect(confirmButton().disabled).toBe(true));

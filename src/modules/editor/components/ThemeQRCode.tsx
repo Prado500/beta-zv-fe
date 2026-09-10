@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { THEME_PRESETS, type DedicationForm } from '../types';
 import { CENTER_ICON_RATIO, buildQrPalette, buildWingedCenterIcon } from '../../../utils/qrTheme';
@@ -39,6 +39,17 @@ interface ThemeQRCodeProps {
    * siempre con esta medida y la postal se encoge por CSS para caber.
    */
   size?: number;
+  /**
+   * Pinta su propio botón de descarga bajo la postal. Con `false`, quien la
+   * monta pone el botón donde quiera y dispara la descarga por `ref`.
+   */
+  showDownload?: boolean;
+  /** Lo que se puede pedir desde fuera: componer y bajar el PNG. */
+  ref?: React.Ref<ThemeQRCodeHandle>;
+}
+
+export interface ThemeQRCodeHandle {
+  download: () => Promise<void>;
 }
 
 /** Factor de escala del PNG exportado respecto a la postal de diseño. */
@@ -99,7 +110,13 @@ const loadImage = (src: string) =>
 
 /* ---------- Componente ---------- */
 
-export const ThemeQRCode: React.FC<ThemeQRCodeProps> = ({ data, cardUrl, size = 212 }) => {
+export const ThemeQRCode: React.FC<ThemeQRCodeProps> = ({
+  data,
+  cardUrl,
+  size = 212,
+  showDownload = true,
+  ref,
+}) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
   const m = useMemo(() => qrCardMetrics(size), [size]);
@@ -317,6 +334,8 @@ export const ThemeQRCode: React.FC<ThemeQRCodeProps> = ({ data, cardUrl, size = 
     }
   }, [download]);
 
+  useImperativeHandle(ref, () => ({ download: handleDownload }), [handleDownload]);
+
   const label = (fontSize: number): React.CSSProperties => ({
     fontSize,
     lineHeight: `${fontSize}px`,
@@ -470,15 +489,17 @@ export const ThemeQRCode: React.FC<ThemeQRCodeProps> = ({ data, cardUrl, size = 
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => void handleDownload()}
-        disabled={downloading}
-        className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-wine text-white font-semibold text-sm shadow-[0_10px_24px_-10px_rgba(140,17,40,0.8)] hover:bg-primary hover:-translate-y-0.5 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-wait disabled:hover:translate-y-0"
-      >
-        <span className="material-symbols-outlined text-[18px]">download</span>
-        {downloading ? 'Generando…' : 'Descargar postal QR (PNG)'}
-      </button>
+      {showDownload && (
+        <button
+          type="button"
+          onClick={() => void handleDownload()}
+          disabled={downloading}
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-wine text-white font-semibold text-sm shadow-[0_10px_24px_-10px_rgba(140,17,40,0.8)] hover:bg-primary hover:-translate-y-0.5 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-wait disabled:hover:translate-y-0"
+        >
+          <span className="material-symbols-outlined text-[18px]">download</span>
+          {downloading ? 'Generando…' : 'Descargar postal QR (PNG)'}
+        </button>
+      )}
     </div>
   );
 };

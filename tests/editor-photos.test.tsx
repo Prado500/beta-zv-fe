@@ -7,13 +7,15 @@ import {
 } from '../src/modules/editor/services/letters';
 import {
   PURCHASE_ID,
-  confirmButton,
+  confirm,
   fillStepOne,
   goToStepTwo,
+  installFreezeClock,
   renderEditor,
+  setupEditorUser,
   submitButton,
 } from './editorHarness';
-import { deferred, setupUser } from './testUtils';
+import { deferred } from './testUtils';
 
 /**
  * Subida anticipada de fotos (IOP #4).
@@ -42,6 +44,8 @@ vi.mock('../src/modules/editor/services/letters', async (importOriginal) => ({
 
 const QUEUED = { mode: 'queued', message: 'En cola.' } as const;
 
+installFreezeClock();
+
 const photo = (name = 'nosotros.jpg') =>
   new File(['contenido-de-la-foto'], name, { type: 'image/jpeg' });
 
@@ -56,7 +60,7 @@ const fileInput = () => screen.getByLabelText('Subir fotos');
 
 describe('EditorPage · subida anticipada de fotos', () => {
   it('elegir una foto la sube en caliente, sin esperar al envío', async () => {
-    const user = setupUser();
+    const user = setupEditorUser();
     vi.mocked(uploadEagerPhoto).mockResolvedValue(stored('tmp-1'));
 
     renderEditor();
@@ -71,7 +75,7 @@ describe('EditorPage · subida anticipada de fotos', () => {
   });
 
   it('mientras la foto sube, el envío queda bloqueado y lo dice', async () => {
-    const user = setupUser();
+    const user = setupEditorUser();
     const pending = deferred<EagerPhoto>();
     vi.mocked(uploadEagerPhoto).mockReturnValue(pending.promise);
 
@@ -91,7 +95,7 @@ describe('EditorPage · subida anticipada de fotos', () => {
   });
 
   it('cuando termina, el tempId viaja dentro del formulario', async () => {
-    const user = setupUser();
+    const user = setupEditorUser();
     vi.mocked(uploadEagerPhoto).mockResolvedValue(stored('tmp-42'));
     vi.mocked(createLetter).mockResolvedValue(QUEUED);
 
@@ -105,7 +109,7 @@ describe('EditorPage · subida anticipada de fotos', () => {
     await waitFor(() => expect(submitButton().disabled).toBe(false));
     await user.click(submitButton());
     await screen.findByRole('dialog');
-    await user.click(confirmButton());
+    await confirm(user);
 
     await waitFor(() =>
       expect(createLetter).toHaveBeenCalledWith(
@@ -120,7 +124,7 @@ describe('EditorPage · subida anticipada de fotos', () => {
   });
 
   it('si una foto no sube, se marca y la carta sale sin ella', async () => {
-    const user = setupUser();
+    const user = setupEditorUser();
     vi.mocked(uploadEagerPhoto).mockRejectedValue(new Error('sin red'));
     vi.mocked(createLetter).mockResolvedValue(QUEUED);
 
@@ -136,7 +140,7 @@ describe('EditorPage · subida anticipada de fotos', () => {
   });
 
   it('quitar una foto la saca del formulario', async () => {
-    const user = setupUser();
+    const user = setupEditorUser();
     vi.mocked(uploadEagerPhoto).mockResolvedValue(stored('tmp-1'));
 
     renderEditor();
@@ -150,7 +154,7 @@ describe('EditorPage · subida anticipada de fotos', () => {
   });
 
   it('pasarse del máximo avisa y no sube nada', async () => {
-    const user = setupUser();
+    const user = setupEditorUser();
     vi.mocked(uploadEagerPhoto).mockResolvedValue(stored('tmp-1'));
 
     renderEditor();
