@@ -1,128 +1,217 @@
 import React, { useMemo } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { THEME_PRESETS } from '../../../editor/types';
-import { buildCenterIcon, buildQrPalette } from '../../../../utils/qrTheme';
+import { CENTER_ICON_RATIO, buildQrPalette, buildWingedCenterIcon } from '../../../../utils/qrTheme';
 import { decorFor, edgeCss, textureCss } from '../../../../utils/themeDecor';
+import { darkenUntilContrast, resolvePalette, withAlpha } from '../../../../utils/themePalette';
+import { flowersFor } from '../../../../utils/themeFlowers';
+import { CARD_FLOWERS, qrCardMetrics } from '../../../../utils/qrCard';
 import { PUBLIC_BASE_URL } from '../../../../config/site';
-import { CornerFlourish, Motif, Ornament } from '../../../../components/decor';
+import { CornerFlourish } from '../../../../components/decor';
 import { Carousel } from '../ui/Carousel';
 
 /**
- * Dedicatorias de muestra, una por estilo. Son ejemplo para la landing: el
- * visitante escribe la suya en el editor. Cada línea sigue el ánimo del tema
- * — la noche estrellada mira al cielo, el jardín habla de crecer— para que se
- * entienda que el estilo no es solo un color.
+ * Postales de muestra, una por estilo.
+ *
+ * Son la misma tarjeta que se lleva quien compra —mismo papel, mismo filo,
+ * mismas flores del tema— pero sin la frase: aquí no hay dedicatoria que
+ * resumir. Los nombres son de ejemplo y van fijos, no sorteados en cada
+ * pintada: así la landing se ve igual cada vez que se abre.
  */
-const SHOWCASE: { themeId: string; dedication: string }[] = [
-  { themeId: 'classic', dedication: 'A ti, siempre a ti' },
-  { themeId: 'pastelPink', dedication: 'Dulce, como tú' },
-  { themeId: 'starry', dedication: 'Bajo el mismo cielo' },
-  { themeId: 'sunset', dedication: 'Hasta el último sol' },
-  { themeId: 'lavender', dedication: 'Mi sueño favorito' },
-  { themeId: 'emerald', dedication: 'Lo nuestro sigue creciendo' },
-  { themeId: 'vintage', dedication: 'De las que se guardan' },
-  { themeId: 'midnight', dedication: 'Mi lugar a medianoche' },
+const SHOWCASE: { themeId: string; to: string; from: string }[] = [
+  { themeId: 'classic', to: 'Valentina', from: 'Santiago' },
+  { themeId: 'pastelPink', to: 'Mariana', from: 'Sebastián' },
+  { themeId: 'starry', to: 'Camila', from: 'Nicolás' },
+  { themeId: 'sunset', to: 'Isabella', from: 'Julián' },
+  { themeId: 'lavender', to: 'Salomé', from: 'Andrés' },
+  { themeId: 'emerald', to: 'Antonia', from: 'Tomás' },
+  { themeId: 'vintage', to: 'Manuela', from: 'Emilio' },
+  { themeId: 'midnight', to: 'Luciana', from: 'Samuel' },
 ];
 
+/** Lado del código en la muestra. El resto de la postal escala con él. */
+const QR_SIZE = 132;
+
+/** Medidas de la postal sin la banda de la nota: son las mismas para las ocho. */
+const METRICS = qrCardMetrics(QR_SIZE, false);
+
+/** Ancho del emblema del centro; el alto sale de su proporción. */
+const ICON_WIDTH = Math.round(QR_SIZE * 0.34);
+
+const CORNERS = ['tl', 'tr', 'bl', 'br'] as const;
+
+const CORNER_PLACEMENT: Record<(typeof CORNERS)[number], string> = {
+  tl: 'top-2 left-2',
+  tr: 'top-2 right-2',
+  bl: 'bottom-2 left-2',
+  br: 'bottom-2 right-2',
+};
+
+interface QrCardProps {
+  themeId: string;
+  to: string;
+  from: string;
+}
+
 /**
- * La etiqueta tal como se entrega: el QR real del tema, con su papel, su filo
- * y su motivo. Los códigos son de verdad —apuntan al sitio— así que se pueden
- * escanear desde la propia página. No son imágenes de relleno.
+ * La postal tal como se entrega. El código es de verdad —apunta al sitio— así
+ * que se puede escanear desde la propia página; no es una imagen de relleno.
  */
-const QrCard: React.FC<{ themeId: string; dedication: string }> = ({ themeId, dedication }) => {
+const QrCard: React.FC<QrCardProps> = ({ themeId, to, from }) => {
   const theme = THEME_PRESETS[themeId];
   const decor = decorFor(themeId);
-  // La trama se tiñe con la tinta de la etiqueta, no con la del tema: en los
-  // temas oscuros el fondo del QR es blanco y el texto del tema sería invisible.
-  const { qr, icon, texture, edge } = useMemo(() => {
-    const palette = buildQrPalette(themeId);
+  const flowers = flowersFor(themeId);
+  const m = METRICS;
+
+  const { paper, qr, icon, texture, edge, metalInk } = useMemo(() => {
+    const palette = resolvePalette(theme);
+    const code = buildQrPalette(themeId);
     return {
-      qr: palette,
-      icon: buildCenterIcon(themeId, palette.fg, palette.bg),
-      texture: textureCss(decor.texture, palette.ink),
+      paper: palette,
+      qr: code,
+      icon: buildWingedCenterIcon(themeId, code.fg, code.bg, decor.metal),
+      texture: textureCss(decor.texture, palette.text),
       edge: edgeCss(decor.edge, decor.metal),
+      /* El metal puro da ~2:1 contra el papel claro; oscurecido hasta 3:1 se
+         sigue leyendo como el dorado o la plata del tema, pero se lee. */
+      metalInk: palette.isDark
+        ? decor.metal
+        : darkenUntilContrast(decor.metal, palette.cardBg, 3),
     };
-  }, [themeId, decor.texture, decor.edge, decor.metal]);
+  }, [theme, themeId, decor.metal, decor.texture, decor.edge]);
+
+  const label = (fontSize: number): React.CSSProperties => ({
+    fontSize,
+    lineHeight: `${fontSize}px`,
+    letterSpacing: '0.4em',
+    color: withAlpha(paper.text, 0.6),
+  });
 
   return (
-    <figure
-      className="relative h-full rounded-3xl px-5 pt-6 pb-5 shadow-[0_20px_44px_-22px_rgba(94,10,27,0.55)] flex flex-col items-center overflow-hidden"
-      style={{ backgroundColor: qr.bg, border: `1px solid ${qr.frame}` }}
-    >
-      {/* Trama del papel del tema */}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0"
+    <figure className="flex h-full flex-col items-center">
+      <div
+        className="relative overflow-hidden shadow-[0_20px_44px_-22px_rgba(94,10,27,0.55)]"
         style={{
-          backgroundImage: texture.backgroundImage,
-          backgroundSize: texture.backgroundSize,
-          opacity: texture.opacity,
+          width: m.width,
+          height: m.height,
+          maxWidth: '100%',
+          borderRadius: m.radius,
+          backgroundColor: paper.cardBg,
         }}
-      />
-
-      {/* Filo interior: doble filete, punteado o ninguno, según el tema */}
-      {edge && (
+      >
+        {/* Trama del papel del tema */}
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-2 rounded-[18px]"
-          style={{ border: edge.border, boxShadow: edge.boxShadow }}
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage: texture.backgroundImage,
+            backgroundSize: texture.backgroundSize,
+            opacity: texture.opacity,
+          }}
         />
-      )}
-
-      <CornerFlourish
-        corner="tl"
-        color={decor.metal}
-        size={38}
-        placement="top-2.5 left-2.5"
-        className="opacity-55"
-      />
-      <CornerFlourish
-        corner="br"
-        color={decor.metal}
-        size={38}
-        placement="bottom-2.5 right-2.5"
-        className="opacity-55"
-      />
-
-      <p
-        className="relative flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.2em] pb-3 opacity-75"
-        style={{ color: qr.ink }}
-      >
-        <Motif motif={decor.motif} size={11} color={decor.metal} />
-        Escanea para abrirla
-      </p>
-
-      <div
-        className="relative rounded-md p-1"
-        style={{ boxShadow: `0 0 0 1px ${qr.frame}`, backgroundColor: qr.bg }}
-      >
-        <QRCodeSVG
-          value={PUBLIC_BASE_URL}
-          size={140}
-          level="H"
-          marginSize={2}
-          fgColor={qr.fg}
-          bgColor={qr.bg}
-          imageSettings={{ src: icon, height: 28, width: 28, excavate: true }}
+        {/* Filo interior: doble filete, punteado o un hilo de metal, según el tema */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute"
+          style={{
+            inset: Math.round(m.padX * 0.42),
+            borderRadius: m.radius * 0.7,
+            border: edge?.border ?? `1px solid ${withAlpha(decor.metal, 0.45)}`,
+            boxShadow: edge?.boxShadow ?? `inset 0 0 0 2.5px ${withAlpha(decor.metal, 0.18)}`,
+          }}
         />
+
+        {/* Las flores del tema, apagadas, en las bandas donde no hay texto */}
+        {flowers.length > 0 &&
+          CARD_FLOWERS.map((f, i) => (
+            <img
+              key={i}
+              src={flowers[f.pick % flowers.length]}
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              decoding="async"
+              draggable={false}
+              className="pointer-events-none absolute select-none"
+              style={{
+                left: m.width * f.x,
+                top: m.height * f.y,
+                width: m.width * f.size,
+                opacity: f.alpha,
+                transform: `rotate(${f.rot}deg)`,
+              }}
+            />
+          ))}
+
+        {CORNERS.map((corner) => (
+          <CornerFlourish
+            key={corner}
+            corner={corner}
+            color={decor.metal}
+            size={m.corner}
+            placement={CORNER_PLACEMENT[corner]}
+            className="opacity-60"
+          />
+        ))}
+
+        <div
+          className="relative flex h-full flex-col items-center text-center"
+          style={{ paddingTop: m.padTop, paddingInline: m.padX }}
+        >
+          <span className="font-serif font-semibold uppercase" style={label(m.nameLabel)}>
+            Para
+          </span>
+          <span
+            className="font-script"
+            style={{ fontSize: m.nameSize, lineHeight: `${m.nameLine}px`, color: metalInk }}
+          >
+            {to}
+          </span>
+
+          <div
+            style={{
+              marginTop: m.gapAfterName,
+              padding: m.tilePad,
+              borderRadius: m.tileRadius,
+              backgroundColor: qr.bg,
+              boxShadow: `0 0 0 1px ${withAlpha(decor.metal, 0.4)}`,
+              lineHeight: 0,
+            }}
+          >
+            <QRCodeSVG
+              value={PUBLIC_BASE_URL}
+              size={m.qr}
+              level="H"
+              marginSize={4}
+              fgColor={qr.fg}
+              bgColor={qr.bg}
+              imageSettings={{
+                src: icon,
+                width: ICON_WIDTH,
+                height: Math.round(ICON_WIDTH * CENTER_ICON_RATIO),
+                excavate: true,
+              }}
+            />
+          </div>
+
+          <span
+            className="font-serif font-semibold uppercase"
+            style={{ ...label(m.fromLabel), marginTop: m.gapAfterQr }}
+          >
+            De
+          </span>
+          <span
+            className="font-script"
+            style={{ fontSize: m.fromSize, lineHeight: `${m.fromLine}px`, color: metalInk }}
+          >
+            {from}
+          </span>
+        </div>
       </div>
 
-      <figcaption className="relative flex flex-col items-center mt-auto pt-3 text-center">
-        <Ornament color={decor.metal} motif={decor.motif} width={92} className="opacity-85" />
-
-        <span
-          className="font-script leading-tight pt-1 px-1"
-          style={{ color: qr.fg, fontSize: '1.35rem' }}
-        >
-          {dedication}
-        </span>
-
-        <span
-          className="text-[9px] font-bold uppercase tracking-[0.16em] pt-1.5 opacity-60"
-          style={{ color: qr.ink }}
-        >
-          {theme.name}
-        </span>
+      {/* El nombre del estilo va fuera: la postal es exactamente el producto */}
+      <figcaption className="pt-3 text-[10px] font-bold uppercase tracking-[0.16em] text-wine/65">
+        {theme.name}
       </figcaption>
     </figure>
   );
@@ -143,8 +232,8 @@ export const QrShowcase: React.FC = () => (
       itemClassName="w-[62%] sm:w-[40%] md:w-[31%] lg:w-[24%]"
       hint="Desliza para ver los estilos"
     >
-      {SHOWCASE.map(({ themeId, dedication }) => (
-        <QrCard key={themeId} themeId={themeId} dedication={dedication} />
+      {SHOWCASE.map(({ themeId, to, from }) => (
+        <QrCard key={themeId} themeId={themeId} to={to} from={from} />
       ))}
     </Carousel>
   </div>

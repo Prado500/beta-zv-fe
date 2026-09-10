@@ -33,48 +33,61 @@ export const Rose: React.FC<RoseProps> = ({
     style={style}
   >
     {/* Tallo */}
-    <path d="M60 78 C63 118 61 152 57 192" stroke={leaf} strokeWidth="3.5" strokeLinecap="round" />
+    <path d="M60 84 C64 120 62 156 58 192" stroke={leaf} strokeWidth="4.5" strokeLinecap="round" />
 
     {/* Hojas */}
     <path
-      d="M61 118 C78 110 92 116 99 128 C84 138 68 134 61 118 Z"
+      d="M62 122 C79 112 95 118 103 132 C87 143 68 139 62 122 Z"
       fill={leaf}
       fillOpacity="0.85"
     />
-    <path d="M63 120 C76 120 87 124 96 129" stroke="#ffffff" strokeOpacity="0.35" strokeWidth="1.4" strokeLinecap="round" />
+    <path d="M64 124 C77 124 90 128 100 133" stroke="#ffffff" strokeOpacity="0.32" strokeWidth="1.5" strokeLinecap="round" />
     <path
-      d="M59 146 C42 140 28 147 22 160 C38 168 53 162 59 146 Z"
+      d="M59 152 C42 144 26 151 18 165 C34 176 53 169 59 152 Z"
       fill={leaf}
       fillOpacity="0.7"
     />
-    <path d="M57 148 C45 149 34 154 26 160" stroke="#ffffff" strokeOpacity="0.3" strokeWidth="1.4" strokeLinecap="round" />
+    <path d="M57 154 C45 155 32 160 22 166" stroke="#ffffff" strokeOpacity="0.28" strokeWidth="1.5" strokeLinecap="round" />
 
-    {/* Sépalos */}
-    <path d="M60 80 C50 78 44 70 43 60 C52 64 58 71 60 80 Z" fill={leaf} fillOpacity="0.9" />
-    <path d="M60 80 C70 78 76 70 77 60 C68 64 62 71 60 80 Z" fill={leaf} fillOpacity="0.9" />
-
-    {/* Capullo: pétalos exteriores hacia el centro */}
+    {/*
+      Capullo. La silueta va lobulada, no elíptica: con una elipse lisa la flor
+      se leía como una paleta de caramelo, sobre todo al 25% de opacidad, que
+      es como aparece de fondo.
+    */}
     <path
-      d="M60 12 C88 12 106 32 106 54 C106 72 86 84 60 84 C34 84 14 72 14 54 C14 32 32 12 60 12 Z"
+      d="M60 12
+         C73 12 83 18 87 27
+         C97 30 102 42 98 52
+         C102 63 93 77 81 78
+         C74 85 46 85 39 78
+         C27 77 18 63 22 52
+         C18 42 23 30 33 27
+         C37 18 47 12 60 12 Z"
       fill={color}
     />
+    {/* Luz arriba y sombra abajo, para que el capullo tenga volumen */}
     <path
-      d="M60 20 C82 20 96 36 96 53 C96 68 80 78 60 78 C40 78 24 68 24 53 C24 36 38 20 60 20 Z"
+      d="M60 17 C73 17 83 24 87 33 C77 26 69 23 60 23 C51 23 43 26 33 33 C37 24 47 17 60 17 Z"
       fill="#ffffff"
-      fillOpacity="0.1"
+      fillOpacity="0.16"
     />
     <path
-      d="M60 28 C76 28 87 40 87 52 C87 63 75 71 60 71 C45 71 33 63 33 52 C33 40 44 28 60 28 Z"
+      d="M25 58 C33 72 45 80 60 80 C75 80 87 72 95 58 C93 74 79 84 60 84 C41 84 27 74 25 58 Z"
       fill="#000000"
-      fillOpacity="0.12"
+      fillOpacity="0.14"
     />
-    {/* Espiral del corazón de la rosa */}
+    {/* Espiral del corazón, centrada en el capullo */}
     <path
-      d="M75 52 C75 44 68 38 60 38 C51 38 45 45 45 53 C45 60 51 65 58 65 C64 65 68 61 68 55 C68 50 64 47 60 47 C57 47 54 50 54 53"
+      d="M82 48 C82 36 72 26 60 26 C47 26 37 36 37 49 C37 60 46 69 57 69 C66 69 73 62 73 54 C73 46 67 41 60 41 C55 41 51 45 51 50"
       stroke="#ffffff"
-      strokeOpacity="0.42"
-      strokeWidth="2.2"
+      strokeOpacity="0.45"
+      strokeWidth="2.6"
       strokeLinecap="round"
     />
+
+    {/* Sépalos: por delante del capullo, si no quedan tapados */}
+    <path d="M51 76 C48 84 44 89 37 92 C41 83 45 78 51 76 Z" fill={leaf} fillOpacity="0.9" />
+    <path d="M69 76 C72 84 76 89 83 92 C79 83 75 78 69 76 Z" fill={leaf} fillOpacity="0.9" />
+    <path d="M60 79 C59 86 58 91 57 96 C55 89 56 83 60 79 Z" fill={leaf} fillOpacity="0.85" />
   </svg>
 );

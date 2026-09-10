@@ -8,7 +8,7 @@ import { QrShowcase } from './QrShowcase';
 const HERO_POSTER = 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?q=80&w=600';
 
 export const Hero: React.FC = () => (
-  <section className="relative overflow-hidden py-12 md:py-section-gap">
+  <section id="inicio" className="relative overflow-hidden py-12 md:py-section-gap scroll-mt-32">
     {/* Halos del hero como gradiente pintado: dos divs de 800px con
         blur(120px) y mix-blend-multiply obligaban a rasterizar todo el
         contexto de apilamiento en cada frame. */}
@@ -44,27 +44,34 @@ export const Hero: React.FC = () => (
         <div className="flex flex-col gap-5 md:gap-6 md:pr-12 text-center md:text-left">
           <div className="inline-flex items-center gap-2 bg-surface-container-high text-primary font-label-sm px-4 py-1.5 rounded-full w-fit mx-auto md:mx-0 border border-primary/10">
             <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span>
-            Especial 15 de Septiembre
+            Amor y amistad
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-on-background leading-[1.1] tracking-tight">
-            ¿No sabes qué regalarle este
-            <span className="block font-script font-normal text-wine text-[2.6rem] sm:text-[4rem] lg:text-[5.6rem] leading-[0.95] tracking-normal mt-1.5 md:mt-2 pb-2">
-              15 de Septiembre?
+            El Regalo que
+            <span className="block font-script font-normal text-wine text-[2.8rem] sm:text-[4.2rem] lg:text-[5.8rem] leading-[0.95] tracking-normal mt-1.5 md:mt-2 pb-2">
+              se Siente
             </span>
           </h1>
 
           <Ornament tone="gold" className="mx-auto md:mx-0 -mt-1" />
 
           <p className="text-base md:text-xl text-on-surface-variant max-w-xl mx-auto md:mx-0 font-medium">
-            Crea una experiencia digital inmersiva. Un <span className="hand-underline font-semibold text-on-background">regalo único</span> que no encontrará en ningún centro comercial, diseñado para emocionar.
+            Imagina su cara cuando escanee un código QR físico y la pantalla de su celular cobre
+            vida. Un espacio privado, diseñado milimétricamente solo para ustedes dos. No es un
+            objeto. Es una experiencia que le va a poner la{' '}
+            <span className="hand-underline font-semibold text-on-background">piel de gallina</span>{' '}
+            antes de terminar de leer la primera línea.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start mt-4">
+          <div className="flex flex-col gap-2.5 items-center md:items-start mt-4">
             <a href="#pricing" className="bg-wine hover:bg-primary text-white px-8 py-4 rounded-full text-lg font-bold transition-all shadow-[0_8px_30px_rgb(185,5,56,0.3)] hover:shadow-[0_8px_30px_rgb(185,5,56,0.5)] flex items-center justify-center gap-2 hover:-translate-y-1">
-              Ver la Oferta
+              Empezar la mía
               <span className="material-symbols-outlined">arrow_forward</span>
             </a>
+            <p className="text-xs font-semibold text-wine/65">
+              Hosting incluido · archivo tuyo para siempre
+            </p>
           </div>
         </div>
 

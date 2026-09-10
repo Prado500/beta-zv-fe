@@ -8,9 +8,11 @@ import { Origin } from '../components/sections/Origin';
 import { LivePreview } from '../components/sections/LivePreview';
 import { SocialProof } from '../components/sections/SocialProof';
 import { Features } from '../components/sections/Features';
+import { HowItWorks } from '../components/sections/HowItWorks';
 import { Pricing } from '../components/sections/Pricing';
 import { PurchaseModal } from '../components/checkout/PurchaseModal';
 import type { CheckoutIntent } from '../hooks/useCheckoutFlow';
+import { useSmoothAnchors } from '../../../hooks/useSmoothAnchors';
 
 export default function LandingPage() {
   /**
@@ -18,6 +20,9 @@ export default function LandingPage() {
    * entrar (cabecera). `null` es cerrado.
    */
   const [modal, setModal] = useState<CheckoutIntent | null>(null);
+
+  /* Los enlaces internos —barra, botones del hero, pie— van suaves */
+  useSmoothAnchors();
 
   return (
     <div className="relative paper-sheet paper-vignette text-on-background font-body-md antialiased selection:bg-primary-container/30 selection:text-primary">
@@ -36,6 +41,7 @@ export default function LandingPage() {
         <LivePreview />
         <SocialProof />
         <Features />
+        <HowItWorks />
         <Pricing onBuy={() => setModal('checkout')} />
       </main>
 
