@@ -1,18 +1,17 @@
 import type { ComponentProps } from 'react';
-import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
 import { SuccessModal } from '../src/modules/editor/components/SuccessModal';
 import type { DedicationForm } from '../src/modules/editor/types';
 import { setupUser } from './testUtils';
 
 /**
- * Modal de éxito: el QR nunca puede verse como una imagen rota.
- *
- * Si el servidor manda una imagen se pinta; si no la manda, o no carga, se
- * dibuja en el navegador con el tema. El enlace público es el mismo en los dos.
+ * Modal de éxito: la postal del QR con el tema y los nombres de la carta,
+ * apuntando al enlace público; el enlace para copiar; y las tres formas de
+ * cerrar. Se afirma lo que se ve y se pulsa.
  */
 
-// jsdom no implementa canvas; lo que se comprueba es qué QR se elige, no el trazado.
+// jsdom no implementa canvas; lo que se comprueba es qué QR se dibuja, no el trazado.
 vi.mock('qrcode.react', () => ({
   QRCodeCanvas: ({ value }: { value: string }) => (
     <canvas data-testid="qr-canvas" data-value={value} />
@@ -24,14 +23,13 @@ const LETTER: DedicationForm = {
   recipient: 'Ana María',
   recipientEmail: 'sebas@ejemplo.com',
   sender: 'Sebastián',
-  message: 'Gracias por cada día a tu lado, mi amor.',
+  message: 'Gracias por cada día, mi amor. Te quiero.',
   songUrl: '',
   themeId: 'classic',
   photos: [],
 };
 
 const PUBLIC_URL = 'https://front.test/carta/ana-maria';
-const QR_URL = 'https://api.test/api/v1/public/letters/ana-maria/qr.png';
 
 const renderModal = (props: Partial<ComponentProps<typeof SuccessModal>> = {}) => {
   const onClose = vi.fn();
@@ -39,7 +37,6 @@ const renderModal = (props: Partial<ComponentProps<typeof SuccessModal>> = {}) =
     <SuccessModal
       open
       publicUrl={PUBLIC_URL}
-      qrUrl={QR_URL}
       recipientEmail={LETTER.recipientEmail}
       letter={LETTER}
       onClose={onClose}
@@ -49,37 +46,58 @@ const renderModal = (props: Partial<ComponentProps<typeof SuccessModal>> = {}) =
   return { onClose };
 };
 
-const serverQr = () => screen.queryByRole('img', { name: /Código QR de la carta/i });
-const localQr = () => screen.queryByTestId('qr-canvas');
+const dialog = () => screen.getByRole('dialog', { name: /lista/i });
+const postcard = () => screen.queryByTestId('qr-canvas');
 
-describe('SuccessModal · QR', () => {
-  it('pinta la imagen del servidor cuando llega un qrUrl', () => {
+const clipboard = (writeText: () => Promise<void>) =>
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
+afterEach(() => {
+  Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+});
+
+describe('SuccessModal · la postal', () => {
+  it('dibuja la postal con el enlace público, los nombres y la primera frase como nota', () => {
     renderModal();
-    expect(serverQr()?.getAttribute('src')).toBe(QR_URL);
-    expect(localQr()).toBeNull();
+
+    expect(postcard()?.getAttribute('data-value')).toBe(PUBLIC_URL);
+    const text = dialog().textContent ?? '';
+    expect(text).toContain('Ana María');
+    expect(text).toContain('Sebastián');
+    expect(text).toContain('Gracias por cada día, mi amor');
+    expect(text).toContain('Escanéalo');
+    expect(screen.getByRole('button', { name: /Descargar postal QR/ })).toBeTruthy();
   });
 
-  it('si la imagen no carga, cae al QR dibujado en el navegador con el mismo enlace', () => {
+  it('muestra el enlace público, para abrirlo y para copiarlo, y el correo al que se envió', () => {
     renderModal();
 
-    fireEvent.error(screen.getByRole('img', { name: /Código QR de la carta/i }));
-
-    expect(serverQr()).toBeNull();
-    expect(localQr()?.getAttribute('data-value')).toBe(PUBLIC_URL);
-    expect(screen.getByText(/Escanea para abrirla/i)).toBeTruthy();
+    expect(dialog().querySelector(`a[href="${PUBLIC_URL}"]`)).not.toBeNull();
+    expect((screen.getByLabelText(/Enlace de la carta/) as HTMLInputElement).value).toBe(PUBLIC_URL);
+    expect(dialog().textContent).toContain(LETTER.recipientEmail);
   });
 
-  it('sin qrUrl dibuja el QR en el navegador directamente', () => {
-    renderModal({ qrUrl: null });
-    expect(serverQr()).toBeNull();
-    expect(localQr()?.getAttribute('data-value')).toBe(PUBLIC_URL);
-  });
-
-  it('muestra el enlace público y el correo al que se envió', () => {
+  it('"Copiar" deja el enlace en el portapapeles y lo dice', async () => {
+    const user = setupUser();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    clipboard(writeText);
     renderModal();
-    const dialog = screen.getByRole('dialog', { name: /lista/i });
-    expect(dialog.querySelector(`a[href="${PUBLIC_URL}"]`)).not.toBeNull();
-    expect(dialog.textContent).toContain(LETTER.recipientEmail);
+
+    await user.click(screen.getByRole('button', { name: /Copiar/ }));
+
+    expect(await screen.findByText(/Enlace copiado/)).toBeTruthy();
+    expect(writeText).toHaveBeenCalledWith(PUBLIC_URL);
+  });
+
+  it('si el portapapeles falla, pide copiarlo a mano y el enlace sigue a la vista', async () => {
+    const user = setupUser();
+    clipboard(vi.fn().mockRejectedValue(new Error('sin permiso')));
+    renderModal();
+
+    await user.click(screen.getByRole('button', { name: /Copiar/ }));
+
+    expect(await screen.findByText(/Cópialo a mano/)).toBeTruthy();
+    expect((screen.getByLabelText(/Enlace de la carta/) as HTMLInputElement).value).toBe(PUBLIC_URL);
   });
 
   it('cerrado no pinta nada', () => {
@@ -87,10 +105,25 @@ describe('SuccessModal · QR', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('"Volver al inicio" avisa al padre', async () => {
+  it('"Volver al inicio", la X y Escape avisan al padre', async () => {
     const user = setupUser();
     const { onClose } = renderModal();
+
     await user.click(screen.getByRole('button', { name: /Volver al inicio/i }));
-    expect(onClose).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole('button', { name: 'Cerrar' }));
+    await user.keyboard('{Escape}');
+
+    expect(onClose).toHaveBeenCalledTimes(3);
+  });
+
+  it('descargar la postal no rompe donde no hay canvas, y el botón vuelve a quedar libre', async () => {
+    const user = setupUser();
+    renderModal();
+
+    const button = screen.getByRole('button', { name: /Descargar postal QR/ });
+    await user.click(button);
+
+    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+    expect(screen.getByRole('button', { name: /Descargar postal QR/ })).toBeTruthy();
   });
 });

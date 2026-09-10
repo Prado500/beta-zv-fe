@@ -450,9 +450,15 @@ ${
   transition: transform 500ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .polaroid:hover img { transform: scale(1.12); }
-.polaroid--inline { width: 84px; margin-bottom: 8px; margin-top: 4px; }
-.polaroid--inline.is-left { float: left; margin-right: 14px; }
-.polaroid--inline.is-right { float: right; margin-left: 14px; }
+/*
+ * La foto se sale del papel por el lado de fuera, igual que en la previa.
+ * El margen negativo salva el relleno del cuerpo (8 px) y el de la hoja
+ * (18 px) y aún asoma unos 10 px: al texto le quedan 36 px más de línea al
+ * lado, que encajado dentro daban tres palabras justas.
+ */
+.polaroid--inline { width: 84px; margin-bottom: 10px; margin-top: 4px; }
+.polaroid--inline.is-left { float: left; margin-right: 14px; margin-left: -36px; }
+.polaroid--inline.is-right { float: right; margin-left: 14px; margin-right: -36px; }
 .polaroid--gallery { width: 92px; padding-bottom: 20px; }
 
 /* ---------- Reproductor ---------- */

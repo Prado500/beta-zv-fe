@@ -41,31 +41,6 @@ export const buildQrPalette = (themeId: string): QrPalette => {
   };
 };
 
-/* ---------- Icono central ---------- */
-
-/**
- * SVG del motivo del tema como data URI, para el centro del QR.
- *
- * Se dibuja en vez de usar emoji (❤️, 🌸, ⭐): el emoji depende de la fuente
- * del sistema y no se rasteriza de forma fiable al exportar el canvas a PNG.
- * Los trazados son los mismos que usan el lacre y la filigrana de la carta.
- */
-export const buildCenterIcon = (themeId: string, color: string, background: string): string => {
-  const motif = decorFor(themeId).motif;
-  const stroked = isStrokedMotif(motif);
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 48 48" color="${color}">
-    <rect width="48" height="48" rx="12" fill="${background}"/>
-    <g transform="${motifTransform(motif, 30, 24, 24)}" fill="${
-      stroked ? 'none' : color
-    }" stroke="${stroked ? color : 'none'}" stroke-width="${
-      stroked ? 3 : 0
-    }" stroke-linecap="round" stroke-linejoin="round">${MOTIF_PATHS[motif]}</g>
-  </svg>`;
-
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-};
-
 /* ---------- Emblema alado de la postal ---------- */
 
 /** Proporción del emblema alado: más ancho que alto. */
@@ -79,10 +54,8 @@ export const CENTER_ICON_RATIO = 72 / 128;
  * debajo del ~30% que tolera la corrección de errores en nivel H. Quien lo
  * pinte debe darle un alto de `width * CENTER_ICON_RATIO`.
  *
- * Convive con `buildCenterIcon`, que sigue siendo cuadrado: el editor y el
- * modal de Mis Dedicatorias lo dibujan a lado fijo y un emblema apaisado ahí
- * saldría aplastado. Cuando esas pantallas adopten la postal, el cuadrado
- * se retirará.
+ * Lo usan la postal de la landing y la del editor, que es la misma que ve
+ * Mis Dedicatorias: el icono cuadrado de antes ya no tiene quien lo pinte.
  */
 export const buildWingedCenterIcon = (
   themeId: string,

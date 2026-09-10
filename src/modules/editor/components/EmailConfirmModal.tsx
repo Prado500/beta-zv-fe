@@ -52,12 +52,12 @@ export const EmailConfirmModal: React.FC<EmailConfirmModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-100 flex items-center justify-center px-4 py-8 bg-wine-deep/55 backdrop-blur-sm"
+      className="modal-backdrop fixed inset-0 z-100 flex items-center justify-center px-4 py-8 bg-wine-deep/55 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-email-title"
     >
-      <div className="relative w-full max-w-md bg-white rounded-4xl shadow-2xl border border-wine/15 px-7 py-8 md:px-9 overflow-hidden">
+      <div className="modal-panel relative w-full max-w-md bg-white rounded-4xl shadow-2xl border border-wine/15 px-7 py-8 md:px-9 overflow-hidden">
         <div className="absolute top-0 inset-x-0 h-1.5 bg-linear-to-r from-wine-deep via-wine to-tertiary" />
         <CornerFlourish corner="tl" tone="gold" size={54} className="opacity-65" />
         <CornerFlourish corner="br" tone="gold" size={54} className="opacity-65" />

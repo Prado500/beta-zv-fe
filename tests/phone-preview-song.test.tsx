@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { PhonePreview } from '../src/modules/editor/components/PhonePreview';
+import { SCENE_MS } from '../src/modules/editor/hooks/useCardChoreography';
 import type { DedicationForm } from '../src/modules/editor/types';
 import { installYouTubeMock, type YouTubeMock } from './youtubeMock';
 
 /**
- * El muro de interacción: tocar el sobre, ver florecer la carta y que la
- * canción arranque sola cuando la hoja ya se ve. Y el chip flotante cuando el
+ * El muro de interacción: tocar el sobre, ver la coreografía y que la canción
+ * arranque sola cuando la hoja ya se ve. Y el chip flotante cuando el
  * reproductor queda arriba, fuera de la vista.
  *
  * Los toques van con `fireEvent`: con el reloj congelado, `userEvent` espera
@@ -24,6 +25,11 @@ const FORM: DedicationForm = {
   photos: [],
 };
 
+/** Sobre → apertura → floración → frase suspendida → hoja. Sin fotos no hay recuerdos. */
+const TO_CARD_MS = SCENE_MS.envelope + SCENE_MS.bloom + SCENE_MS.phrase;
+/** Ya en la hoja, lo que se espera antes de arrancar la canción. */
+const SONG_START_MS = 400;
+
 type ObserverCallback = (entries: Partial<IntersectionObserverEntry>[]) => void;
 
 let yt: YouTubeMock;
@@ -39,6 +45,7 @@ beforeEach(() => {
         observers.push(callback);
       }
       observe() {}
+      unobserve() {}
       disconnect() {}
     },
   );
@@ -52,15 +59,13 @@ afterEach(() => {
 const tapEnvelope = () => fireEvent.click(screen.getByText('Toca para abrir'));
 
 /**
- * Sobre → floración (2,8 s) → hoja → arranque de la canción (0,4 s).
- *
  * En dos pasos a propósito: el efecto que programa el arranque solo existe
  * después de que React pinte la hoja, y eso ocurre al cerrar el primer `act`.
  */
 const openCard = () => {
   tapEnvelope();
-  act(() => vi.advanceTimersByTime(2800));
-  act(() => vi.advanceTimersByTime(400));
+  act(() => vi.advanceTimersByTime(TO_CARD_MS));
+  act(() => vi.advanceTimersByTime(SONG_START_MS));
 };
 
 const playerOutOfView = (outOfView: boolean) =>
@@ -88,31 +93,33 @@ describe('PhonePreview: la canción', () => {
     expect(yt.last().playVideo).not.toHaveBeenCalled();
   });
 
-  it('tocar el sobre, esperar la floración y la hoja: entonces suena', async () => {
+  it('tocar el sobre, esperar la coreografía y la hoja: entonces suena', async () => {
     await renderCard();
     const player = yt.last();
     vi.useFakeTimers();
 
     tapEnvelope();
-    act(() => vi.advanceTimersByTime(2800));
+    act(() => vi.advanceTimersByTime(TO_CARD_MS));
     expect(player.playVideo).not.toHaveBeenCalled();
 
-    act(() => vi.advanceTimersByTime(399));
+    act(() => vi.advanceTimersByTime(SONG_START_MS - 1));
     expect(player.playVideo).not.toHaveBeenCalled();
     act(() => vi.advanceTimersByTime(1));
     expect(player.playVideo).toHaveBeenCalledTimes(1);
   });
 
-  it('cerrar la carta pausa la canción', async () => {
+  it('cerrar la carta pausa la canción y vuelve al sobre', async () => {
     await renderCard();
     const player = yt.last();
     vi.useFakeTimers();
 
     openCard();
     player.setState(1);
+    expect(screen.queryByText('Toca para abrir')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: /Cerrar/ }));
     expect(player.pauseVideo).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Toca para abrir')).toBeTruthy();
   });
 
   it('sin canción no hay reproductor ni se toca YouTube', async () => {

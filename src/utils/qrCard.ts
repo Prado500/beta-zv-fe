@@ -1,12 +1,11 @@
 /**
- * La postal del QR: medidas y flores de fondo, en un solo sitio.
+ * La postal del QR: medidas y trazados, en un solo sitio.
  *
- * La tarjeta se pinta en pantalla con HTML y, en el editor, también en un
- * canvas para el PNG; las dos tienen que salir idénticas. Por eso las medidas
- * no van sueltas en cada componente: se calculan aquí a partir del lado del QR.
- *
- * Por ahora la usa la muestra de la landing. Los trazados para canvas y el
- * recorte de la nota llegarán con la postal del editor.
+ * La tarjeta se pinta dos veces —en pantalla con HTML y en el PNG con canvas—
+ * y tienen que salir idénticas. Por eso las medidas no van sueltas en cada
+ * lado: se calculan aquí a partir del lado del QR, y los trazados de las
+ * esquinas son cadenas de `path` que sirven igual para un <svg> que para un
+ * `Path2D` del canvas.
  */
 
 /** Lado del QR para el que está pensado el diseño; el resto escala desde aquí. */
@@ -102,6 +101,26 @@ export const qrCardMetrics = (qr: number, withNote = true): QrCardMetrics => {
   };
 };
 
+/* ---------- Enredadera de esquina ---------- */
+
+/**
+ * Los mismos trazados que `CornerFlourish`, sueltos, en una caja de 64×64.
+ *
+ * Se repiten aquí en vez de importarlos del componente porque el canvas no
+ * puede dibujar JSX: necesita las cadenas para construir `Path2D`.
+ */
+export const CORNER_BOX = 64;
+export const CORNER_ARC_OUTER = 'M2 40 C2 19 19 2 40 2';
+export const CORNER_ARC_INNER = 'M9 40 C9 23 23 9 40 9';
+export const CORNER_LEAF = 'M20 14 C24 9 30 8 34 9 C31 14 25 16 20 14 Z';
+export const CORNER_DOTS: [number, number][] = [
+  [40, 2],
+  [2, 40],
+];
+
+/** Giro de la enredadera según la esquina, igual que en el componente. */
+export const CORNER_ANGLE = { tl: 0, tr: 90, br: 180, bl: 270 } as const;
+
 /* ---------- Flores del tema ---------- */
 
 export interface CardFlower {
@@ -131,3 +150,35 @@ export const CARD_FLOWERS: CardFlower[] = [
   { x: 0.01, y: 0.79, size: 0.17, rot: 13, alpha: 0.44, pick: 2 },
   { x: 0.81, y: 0.855, size: 0.145, rot: -14, alpha: 0.38, pick: 0 },
 ];
+
+/* ---------- Texto ---------- */
+
+/** Nota por defecto cuando la dedicatoria aún no tiene mensaje. */
+export const DEFAULT_NOTE = 'Eres muy especial en mi vida.';
+
+/** Segunda línea fija, la que invita a escanear. */
+export const SCAN_LINE = 'Escanéalo…';
+
+/**
+ * Recorta la nota a una línea que quepa en `maxWidth`.
+ *
+ * `measure` la pone quien llama: el canvas mide de verdad con `ctx.measureText`
+ * y en pantalla basta con estimar por número de caracteres.
+ */
+export const fitNote = (text: string, maxWidth: number, measure: (s: string) => number): string => {
+  if (measure(text) <= maxWidth) return text;
+
+  const words = text.split(/\s+/).filter(Boolean);
+  let out = '';
+  for (const word of words) {
+    const candidate = out ? `${out} ${word}` : word;
+    if (measure(`${candidate}…`) > maxWidth) break;
+    out = candidate;
+  }
+  // Si ni la primera palabra cabe, se corta por letras
+  if (!out) {
+    out = text;
+    while (out.length > 1 && measure(`${out}…`) > maxWidth) out = out.slice(0, -1);
+  }
+  return `${out.replace(/[,;:.]+$/, '')}…`;
+};
