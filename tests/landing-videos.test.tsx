@@ -60,7 +60,7 @@ describe('vídeos de la landing', () => {
     posters.forEach((poster) => expect(poster.getAttribute('src')).toContain(`/vi/${DEFAULT_VIDEO_ID}/`));
   });
 
-  it('tocar el vídeo del hero monta exactamente un iframe, con autoplay y sin cookies', async () => {
+  it('tocar el vídeo del hero monta exactamente un iframe, con autoplay, origin y Referer', async () => {
     const user = setupUser();
     renderLanding();
 
@@ -69,9 +69,10 @@ describe('vídeos de la landing', () => {
     const frames = document.querySelectorAll('iframe');
     expect(frames).toHaveLength(1);
     expect(frames[0].getAttribute('src')).toBe(
-      `https://www.youtube-nocookie.com/embed/${DEFAULT_VIDEO_ID}?autoplay=1&playsinline=1&rel=0`,
+      `https://www.youtube.com/embed/${DEFAULT_VIDEO_ID}?autoplay=1&playsinline=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`,
     );
     expect(frames[0].getAttribute('allow')).toContain('autoplay');
+    expect(frames[0].getAttribute('referrerpolicy')).toBe('strict-origin-when-cross-origin');
   });
 
   it('la demo trae la canción puesta y se puede escuchar desde el teléfono', async () => {

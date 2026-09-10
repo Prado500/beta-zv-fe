@@ -65,12 +65,12 @@ const renderReady = async (videoId = ID) => {
 };
 
 describe('SongPlayer + useYouTubePlayer', () => {
-  it('crea el reproductor sin cookies, inline y sin autoplay; reproduce y pausa desde su botón', async () => {
+  it('crea el reproductor en www.youtube.com con origin, inline y sin autoplay; reproduce y pausa desde su botón', async () => {
     const user = setupUser();
     await renderReady();
     const player = yt.last();
 
-    expect(player.options.host).toBe('https://www.youtube-nocookie.com');
+    expect(player.options.host).toBe('https://www.youtube.com');
     expect(player.options.videoId).toBe(ID);
     expect(player.options.playerVars).toMatchObject({ playsinline: 1, autoplay: 0, rel: 0 });
     expect(player.options.playerVars?.origin).toBe(window.location.origin);
@@ -140,6 +140,12 @@ describe('SongPlayer + useYouTubePlayer', () => {
     expect(link.getAttribute('href')).toBe(`https://www.youtube.com/watch?v=${ID}`);
     expect(link.getAttribute('target')).toBe('_blank');
     expect((screen.getByRole('button', { name: 'Reproducir la canción' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('un error 153 explica que YouTube no identificó la página', async () => {
+    await renderReady();
+    yt.last().fail(153);
+    expect(screen.getByText(/no pudo identificar esta página/)).toBeTruthy();
   });
 
   it('cambiar de canción encola el nuevo vídeo en el mismo reproductor; desmontar lo destruye', async () => {
