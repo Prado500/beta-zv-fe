@@ -35,8 +35,22 @@ vi.mock('../src/modules/promo/services/checkout', async (importOriginal) => ({
 // implementa. Aislarla en `redirectTo` permite comprobar *a dónde* se iba a ir.
 vi.mock('../src/utils/navigation', () => ({ redirectTo: vi.fn() }));
 
+// El paso de la contraseña pide los Términos al montarse. Se simulan para que la
+// prueba no dependa de la red; su contenido real se prueba en el backend.
+vi.mock('../src/modules/legal/services/legal', () => ({
+  fetchTerms: vi.fn(async () => ({
+    version: TERMS_VERSION,
+    checksum: 'a'.repeat(64),
+    content: '# Términos\n\nTexto de prueba sobre fotografías y la Carta HTML.',
+  })),
+  forgetTerms: vi.fn(),
+}));
+
 const NAME = 'Sebastián';
 const EMAIL = 'sebas@ejemplo.com';
+const DOCUMENT = '1098765432';
+/** La versión que sirve el backend y que el alta manda de vuelta como prueba. */
+const TERMS_VERSION = '2026-09-10';
 /** Dentro del rango que acepta el backend (4–10). */
 const PASSWORD = 'amor24';
 
@@ -85,6 +99,7 @@ const waitOutCountdown = () => {
 /** Paso 1 relleno y pulsado: deja la pantalla de confirmación en pantalla. */
 const goToConfirm = async (user: ReturnType<typeof setup>, email = EMAIL) => {
   await user.type(screen.getByLabelText('Tu nombre'), NAME);
+  await user.type(screen.getByLabelText('Número de documento'), DOCUMENT);
   await user.type(screen.getByLabelText('Tu correo'), email);
   await user.click(nextButton());
   await screen.findByLabelText('Corrígelo aquí si hace falta');
@@ -103,6 +118,11 @@ const fill = async (user: ReturnType<typeof setup>, email = EMAIL) => {
   await goToPassword(user, email);
   await user.type(screen.getByLabelText('Contraseña'), PASSWORD);
   await user.type(screen.getByLabelText('Confirmar contraseña'), PASSWORD);
+  // Sin autorización expresa no hay cuenta: la casilla nunca viene marcada.
+  await user.click(screen.getByRole('checkbox'));
+  // El botón espera a que lleguen los Términos: sin su versión no se puede registrar
+  // a nadie. Aguardarlo aquí deja a todos los casos partiendo del mismo estado.
+  await waitFor(() => expect(submitButton().disabled).toBe(false));
 };
 
 describe('PurchaseModal', () => {
@@ -120,7 +140,15 @@ describe('PurchaseModal', () => {
 
     // `confirmPassword` nunca sale de esta pantalla: el backend prohíbe campos
     // de más y devolvería un 422 por un dato que solo servía para cazar erratas.
-    expect(registerAccount).toHaveBeenCalledWith({ name: NAME, email: EMAIL, password: PASSWORD });
+    expect(registerAccount).toHaveBeenCalledWith({
+      name: NAME,
+      email: EMAIL,
+      password: PASSWORD,
+      // El tipo viaja como la cadena del `<select>`; el servicio la convierte a entero.
+      documentType: '13',
+      documentNumber: DOCUMENT,
+      acceptedTermsVersion: TERMS_VERSION,
+    });
     // Sin este apunte, a la vuelta de la pasarela no sabríamos qué verificar.
     expect(window.sessionStorage.getItem('checkout:purchaseId')).toBe('pur_123');
     // Y la app se acuerda de que aquí hubo sesión: la próxima carga preguntará a /me.
@@ -196,6 +224,7 @@ describe('PurchaseModal', () => {
 
     await user.type(await screen.findByLabelText('Contraseña'), PASSWORD);
     await user.type(screen.getByLabelText('Confirmar contraseña'), PASSWORD);
+    await user.click(screen.getByRole('checkbox'));
     await user.click(submitButton());
 
     await waitFor(() => expect(redirectTo).toHaveBeenCalled());

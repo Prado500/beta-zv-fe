@@ -6,6 +6,7 @@ import { PurchaseModal } from '../src/modules/promo/components/checkout/Purchase
 import { CONFIRM_DELAY_SECONDS } from '../src/modules/promo/components/checkout/steps/EmailConfirmStep';
 import type { CheckoutIntent } from '../src/modules/promo/hooks/useCheckoutFlow';
 import { forgetCsrf } from '../src/utils/api';
+import { forgetTerms } from '../src/modules/legal/services/legal';
 import { renderAt, setupUser } from './testUtils';
 
 /**
@@ -34,6 +35,8 @@ interface Cuenta {
 
 /** Estado del servidor de mentira. Se vacía entre casos. */
 const users = new Map<string, Cuenta>();
+/** Los documentos ya tomados: en el backend es un índice único entre cuentas. */
+const documentos = new Set<string>();
 const sessions = new Map<string, string>();
 /** El "navegador": lo que el servidor dejó puesto y vuelve en cada llamada. */
 const jar = new Map<string, string>();
@@ -73,6 +76,15 @@ const servidor = async (input: RequestInfo | URL, init?: RequestInit): Promise<R
     body,
   });
 
+  if (path === '/api/v1/public/legal/terms') {
+    // Público y sin CSRF, como el endpoint real.
+    return reply(200, {
+      version: TERMS_VERSION,
+      checksum: 'a'.repeat(64),
+      content: '# Términos\n\nTexto de prueba sobre fotografías y la Carta HTML.',
+    });
+  }
+
   if (path === '/api/v1/auth/csrf') {
     const token = `csrf-${++contador}`;
     jar.set(CSRF_COOKIE, token);
@@ -96,9 +108,25 @@ const servidor = async (input: RequestInfo | URL, init?: RequestInit): Promise<R
   if (path === '/api/v1/auth/register' && method === 'POST') {
     // El backend hace `casefold()` sobre el correo, en el alta y al entrar.
     const clave = String(body!.email).toLowerCase();
+    // El correo se comprueba ANTES que el documento: el frontend usa EMAIL_IN_USE
+    // para mandar a iniciar sesión, y el orden decide qué código llega.
     if (users.has(clave)) {
       return reply(409, { code: 'EMAIL_IN_USE', message: 'No se puede registrar ese correo.' });
     }
+    if (body!.acceptedTermsVersion !== TERMS_VERSION) {
+      return reply(422, {
+        code: 'TERMS_VERSION_MISMATCH',
+        message: 'Los términos cambiaron. Recarga la página y vuelve a intentarlo.',
+      });
+    }
+    const documento = `${body!.documentType}:${body!.documentNumber}`;
+    if (documentos.has(documento)) {
+      return reply(409, {
+        code: 'REGISTRATION_CONFLICT',
+        message: 'No pudimos crear la cuenta con esos datos. Si ya tienes cuenta, inicia sesión.',
+      });
+    }
+    documentos.add(documento);
     const user = {
       id: `usr_${users.size + 1}`,
       email: clave,
@@ -184,6 +212,9 @@ const Pantalla = () => {
 
 const EMAIL = 'prueba@ejemplo.com';
 const PASSWORD = 'noni';
+const DOCUMENTO = '1098765432';
+/** La sirve el backend; el alta manda de vuelta esta misma cadena. */
+const TERMS_VERSION = '2026-09-10';
 
 const llamadasA = (path: string) => llamadas.filter((c) => c.path === path);
 const ultima = (path: string) => llamadasA(path).at(-1);
@@ -194,13 +225,19 @@ const botonEntrar = () => screen.getByRole('button', { name: /Iniciar sesión/ }
 type Usuario = ReturnType<typeof setupUser>;
 
 /** Alta completa desde la cabecera: entrar -> "Crea tu cuenta" -> los tres tramos. */
-const darDeAlta = async (user: Usuario, password = PASSWORD, email = EMAIL) => {
+const darDeAlta = async (
+  user: Usuario,
+  password = PASSWORD,
+  email = EMAIL,
+  documento = DOCUMENTO,
+) => {
   await user.click(botonEntrar());
   await screen.findByLabelText('Contraseña');
   await user.click(screen.getByRole('button', { name: 'Crea tu cuenta' }));
   await screen.findByLabelText('Tu nombre');
 
   await user.type(screen.getByLabelText('Tu nombre'), 'Prueba');
+  await user.type(screen.getByLabelText('Número de documento'), documento);
   await user.type(screen.getByLabelText('Tu correo'), email);
   await user.click(screen.getByRole('button', { name: /^Siguiente/ }));
   await screen.findByLabelText('Corrígelo aquí si hace falta');
@@ -212,6 +249,8 @@ const darDeAlta = async (user: Usuario, password = PASSWORD, email = EMAIL) => {
   await screen.findByLabelText('Contraseña');
   await user.type(screen.getByLabelText('Contraseña'), password);
   await user.type(screen.getByLabelText('Confirmar contraseña'), password);
+  // El consentimiento es expreso: sin marcarlo, el alta no sale.
+  await user.click(screen.getByRole('checkbox'));
   await user.click(screen.getByRole('button', { name: /Continuar al pago/ }));
   await waitFor(() => expect(chip()).not.toBeNull());
 };
@@ -232,6 +271,7 @@ const entrar = async (user: Usuario, password = PASSWORD, email = EMAIL) => {
 
 beforeEach(() => {
   users.clear();
+  documentos.clear();
   sessions.clear();
   jar.clear();
   llamadas.length = 0;
@@ -242,6 +282,9 @@ beforeEach(() => {
   // que vaciarlo a mano o un caso arrancaría con el token del anterior y una
   // cookie que ya no existe.
   forgetCsrf();
+  // El texto legal también se cachea en una variable de módulo que sobrevive al
+  // archivo entero; sin vaciarla, un caso vería el de otro y no gastaría petición.
+  forgetTerms();
   vi.stubGlobal('fetch', vi.fn(servidor));
   vi.useFakeTimers({ shouldAdvanceTime: true });
 });
@@ -259,6 +302,10 @@ describe('Ciclo de sesión contra el contrato del backend', () => {
       name: 'Prueba',
       email: EMAIL,
       password: PASSWORD,
+      // Entero, no la cadena del `<select>`: es el código oficial de la DIAN.
+      documentType: 13,
+      documentNumber: DOCUMENTO,
+      acceptedTermsVersion: TERMS_VERSION,
     });
     // Lo que se registra y lo que abre la sesión tienen que ser el MISMO secreto.
     expect(ultima('/api/v1/auth/login')!.body).toEqual({ email: EMAIL, password: PASSWORD });

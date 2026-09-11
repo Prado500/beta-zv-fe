@@ -2,6 +2,7 @@ import React, { type BaseSyntheticEvent } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 import type { CheckoutInput, CheckoutStatus, CheckoutValues } from '../../../hooks/useCheckoutFlow';
 import { MAX_PASSWORD, MIN_PASSWORD } from '../../../../auth/services/auth';
+import type { Terms } from '../../../../legal/services/legal';
 import { FieldError } from '../../../../../components/ui/FieldError';
 import { fieldClass, fieldTone, HINT, LABEL } from '../../../../../components/ui/formStyles';
 
@@ -16,12 +17,21 @@ import { fieldClass, fieldTone, HINT, LABEL } from '../../../../../components/ui
  * Entre 4 y 10 caracteres y ninguna regla más: ni mayúsculas, ni dígitos, ni
  * símbolos. El `maxLength` corta antes de llegar al límite, así que el tope no
  * se descubre con un error en rojo sino porque el campo deja de escribir.
+ *
+ * Aquí va también el consentimiento, porque es el paso en el que se crea la cuenta.
+ * Sigue siendo una **vista pura**: no pide los términos ni sabe que existe una API,
+ * se los dan hechos.
  */
 
 interface PasswordStepProps {
   form: UseFormReturn<CheckoutInput, unknown, CheckoutValues>;
   status: CheckoutStatus;
   busy: boolean;
+  /** Términos vigentes; `null` mientras cargan o si fallaron. */
+  terms: Terms | null;
+  termsError: string | null;
+  onReadTerms: () => void;
+  onRetryTerms: () => void;
   onSubmit: (event: BaseSyntheticEvent) => void;
   onBack: () => void;
 }
@@ -30,13 +40,26 @@ export const PasswordStep: React.FC<PasswordStepProps> = ({
   form,
   status,
   busy,
+  terms,
+  termsError,
+  onReadTerms,
+  onRetryTerms,
   onSubmit,
   onBack,
 }) => {
   const {
     register,
-    formState: { errors, dirtyFields },
+    formState: { errors, dirtyFields, isSubmitted },
   } = form;
+
+  /**
+   * La casilla nace sin marcar y eso es un error del esquema desde el primer render.
+   * Enseñarlo antes de que nadie la haya visto sería gritarle a quien todavía está
+   * escribiendo la contraseña, así que el aviso espera a que se intente enviar o a
+   * que la casilla se toque.
+   */
+  const consentProblem =
+    isSubmitted || dirtyFields.acceptsTerms ? errors.acceptsTerms?.message : undefined;
 
   const tone = (field: 'password' | 'confirmPassword') =>
     fieldTone(Boolean(errors[field]), Boolean(dirtyFields[field]));
@@ -83,9 +106,76 @@ export const PasswordStep: React.FC<PasswordStepProps> = ({
         <FieldError id="buy-password-confirm-error" message={errors.confirmPassword?.message} />
       </div>
 
+      {/*
+        El consentimiento va pegado al botón que crea la cuenta, no tres pantallas
+        antes: la autorización se otorga en el momento del acto, que es lo que la
+        Ley 1581 llama "previa, expresa e informada".
+
+        La casilla NUNCA nace marcada. Una casilla premarcada no es consentimiento
+        válido, y además es el patrón que sanciona la SIC.
+      */}
+      <div className="border-t border-wine/10 pt-4">
+        <label className="flex items-start gap-2.5 cursor-pointer">
+          <input
+            type="checkbox"
+            {...register('acceptsTerms')}
+            aria-invalid={Boolean(consentProblem)}
+            aria-describedby={consentProblem ? 'buy-terms-error' : undefined}
+            className="mt-0.5 size-4 shrink-0 accent-wine cursor-pointer"
+          />
+          <span className="text-sm text-on-surface-variant leading-snug">
+            Acepto los{' '}
+            <button
+              type="button"
+              onClick={onReadTerms}
+              disabled={!terms}
+              className="font-semibold text-wine underline underline-offset-4 decoration-wine/40 hover:text-primary transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+            >
+              Términos y la Política de Tratamiento de Datos
+            </button>
+            .
+          </span>
+        </label>
+        <FieldError id="buy-terms-error" message={consentProblem} />
+
+        {/*
+          El resumen es lo que de verdad informa: nadie lee cuatro páginas, y
+          "informada" es un requisito legal, no una cortesía. Estas son las dos
+          cláusulas que el negocio necesita que se entiendan.
+        */}
+        <ul className="mt-2.5 space-y-1 text-xs text-wine/70 leading-relaxed">
+          <li className="flex items-start gap-1.5">
+            <span className="material-symbols-outlined text-[14px] mt-px">photo_camera</span>
+            Nos autorizas a procesar tus fotografías para componer tu carta.
+          </li>
+          <li className="flex items-start gap-1.5">
+            <span className="material-symbols-outlined text-[14px] mt-px">download</span>
+            Tu Carta HTML la descargas y la guardas tú: no la alojamos para siempre.
+          </li>
+        </ul>
+
+        {/*
+          Sin la versión vigente no se puede registrar a nadie: guardaríamos un
+          consentimiento sin saber a qué texto corresponde. Por eso hay reintento y
+          no solo un aviso: si no, un corte de red dejaría el alta muerta.
+        */}
+        {termsError && (
+          <p className="text-sm text-error font-medium mt-2 flex items-center gap-2" role="alert">
+            <span>{termsError}</span>
+            <button
+              type="button"
+              onClick={onRetryTerms}
+              className="font-semibold text-wine underline underline-offset-4 decoration-wine/40 hover:text-primary transition-colors cursor-pointer"
+            >
+              Reintentar
+            </button>
+          </p>
+        )}
+      </div>
+
       <button
         type="submit"
-        disabled={busy}
+        disabled={busy || !terms}
         className="mt-1 w-full py-3.5 rounded-full bg-wine text-white font-semibold text-sm shadow-lg hover:bg-primary transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:cursor-wait disabled:opacity-70"
       >
         {status === 'redirecting'

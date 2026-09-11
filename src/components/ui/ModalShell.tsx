@@ -24,19 +24,23 @@ interface ModalShellProps {
   onClose?: () => void;
   /** Mientras es `true`, no se puede cerrar por ningún camino. */
   busy?: boolean;
-  size?: 'md' | 'lg';
+  /** `xl` es para los de dos columnas, como la postal del QR junto a su enlace. */
+  size?: 'md' | 'lg' | 'xl';
+  /** `over` apila este modal encima de otro que ya está abierto, sin desmontarlo. */
+  layer?: 'base' | 'over';
   /** Clases extra del panel (`text-center`, por ejemplo). */
   className?: string;
   children: ReactNode;
 }
 
-const WIDTH = { md: 'max-w-md', lg: 'max-w-lg' } as const;
+const WIDTH = { md: 'max-w-md', lg: 'max-w-lg', xl: 'max-w-3xl' } as const;
 
 export const ModalShell: React.FC<ModalShellProps> = ({
   labelledBy,
   onClose,
   busy = false,
   size = 'md',
+  layer = 'base',
   className = '',
   children,
 }) => {
@@ -55,7 +59,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-100 flex items-center justify-center px-4 py-8 bg-wine-deep/50 backdrop-blur-sm overflow-y-auto"
+      className={`fixed inset-0 ${layer === 'over' ? 'z-110' : 'z-100'} flex items-center justify-center px-4 py-8 bg-wine-deep/50 backdrop-blur-sm overflow-y-auto`}
       role="dialog"
       aria-modal="true"
       aria-labelledby={labelledBy}

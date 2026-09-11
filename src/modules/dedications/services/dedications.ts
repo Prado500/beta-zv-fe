@@ -1,5 +1,6 @@
-import { apiGet, apiPost, apiUrl } from '../../../utils/api';
-import { publicQrPath } from '../../editor/services/letters';
+import { apiGet, apiPost } from '../../../utils/api';
+import type { DedicationForm } from '../../editor/types';
+import { fetchPublicLetter, toDedicationForm } from '../../viewer/services/publicLetters';
 
 /**
  * "Mis dedicatorias": el panel posventa del comprador.
@@ -7,11 +8,11 @@ import { publicQrPath } from '../../editor/services/letters';
  * El contrato es el de `GET /api/v1/me/dedications` (HANDOFF_MIS_DEDICATORIAS.md):
  * una fila por compra pagada, con su carta si existe, de la compra más reciente a
  * la más antigua y sin paginar. El listado **no trae** cuerpo, fotos ni entregas,
- * y es a propósito: el panel enseña estado y enlace; el detalle sigue en
- * `GET /api/v1/letters/{id}` para cuando haga falta.
+ * y es a propósito: el panel enseña estado y enlace; la carta entera se pide
+ * aparte, y solo cuando la postal del QR o el archivo HTML la necesitan.
  *
- * Aquí no se decide nada: se pide, se devuelve tal cual y se construyen las dos
- * URL que la tarjeta necesita. La interpretación de los estados vive en el
+ * Aquí no se decide nada: se pide, se devuelve tal cual y se construye la ruta
+ * que la tarjeta necesita. La interpretación de los estados vive en el
  * diccionario de la vista, y la del reenvío en su hook.
  */
 
@@ -84,13 +85,19 @@ export const resendDelivery = (
   );
 
 /**
- * QR de una carta publicada: el endpoint público por slug, vía `apiUrl`.
+ * La carta publicada entera —cuerpo, firma, canción y fotos—, por slug y sin sesión.
  *
- * Es el mismo criterio que sigue el editor y por el mismo motivo: el `qrUrl` que
- * arma el backend apunta al endpoint con sesión sobre el origen del frontend, y
- * un `<img>` no puede cargarlo. El público no pide cookie y vive en la API.
+ * El listado no la trae a propósito, y la postal del QR y el archivo HTML la
+ * necesitan: la firma y la primera frase van en la postal; todo, en el archivo.
+ * Es el mismo endpoint y la misma traducción que usa el visor, así que la firma
+ * y la canción salen del cuerpo con el mismo parser. Las fotos llegan con la
+ * ruta pública de la API, que es la única que existe: los contenedores de Azure
+ * son privados y el backend nunca devuelve su dirección.
  */
-export const qrUrlFor = (publicSlug: string): string => apiUrl(publicQrPath(publicSlug));
+export const fetchPublishedLetter = async (
+  slug: string,
+  signal?: AbortSignal,
+): Promise<DedicationForm> => toDedicationForm(await fetchPublicLetter(slug, signal));
 
 /**
  * Ruta interna del visor. Para **ver** la carta se prefiere a `publicUrl`: esta

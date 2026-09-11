@@ -20,6 +20,11 @@ export interface Credentials {
   email: string;
   password: string;
   name: string;
+  /** Código oficial DIAN, como lo devuelve el `<select>`. */
+  documentType: string;
+  documentNumber: string;
+  /** Versión exacta del texto que la persona aceptó, tal y como la sirvió la API. */
+  acceptedTermsVersion: string;
 }
 
 /**
@@ -38,12 +43,33 @@ export const MAX_PASSWORD = 10;
  * Alta de la cuenta. **No abre sesión**: el backend responde 201 con el usuario
  * y sin cookie, así que después hay que llamar a `login`.
  *
+ * Ya no crea solo una cuenta: es un acto legal. La misma petición guarda el
+ * documento de identidad (cifrado, para poder facturar ante la DIAN) y la prueba
+ * de que la persona autorizó el tratamiento de sus datos. Las tres cosas entran
+ * juntas o no entra ninguna, así que un fallo aquí no deja una cuenta a medias.
+ *
  * El cuerpo se arma campo a campo y no se reenvía el objeto del formulario tal
  * cual: `Register` declara `extra="forbid"`, así que cualquier campo de más
- * —`confirmPassword`, sin ir más lejos— tumbaría la petición con un 422.
+ * —`confirmPassword` o `acceptsTerms`, sin ir más lejos— tumbaría la petición
+ * con un 422.
  */
-export const register = ({ name, email, password }: Credentials): Promise<UserResponse> =>
-  apiPost<UserResponse>('/api/v1/auth/register', { name, email, password });
+export const register = ({
+  name,
+  email,
+  password,
+  documentType,
+  documentNumber,
+  acceptedTermsVersion,
+}: Credentials): Promise<UserResponse> =>
+  apiPost<UserResponse>('/api/v1/auth/register', {
+    name,
+    email,
+    password,
+    // El select devuelve texto; el backend espera el entero del catálogo DIAN.
+    documentType: Number(documentType),
+    documentNumber,
+    acceptedTermsVersion,
+  });
 
 /** Abre la sesión: el servidor deja la cookie `HttpOnly` y devuelve el usuario. */
 export const login = (email: string, password: string): Promise<UserResponse> =>

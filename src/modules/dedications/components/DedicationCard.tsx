@@ -2,17 +2,21 @@ import React, { type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { CornerFlourish } from '../../../components/decor';
 import { formatDate } from '../../../utils/dates';
+import { useCardExports } from '../../editor/hooks/useCardExports';
 import { THEME_PRESETS, themeFromSlug } from '../../editor/types';
-import { viewerPathFor, type Dedication } from '../services/dedications';
+import { fetchPublishedLetter, viewerPathFor, type Dedication } from '../services/dedications';
 import { DEDICATION_STATES } from './dedicationStates';
 
 /**
  * Una fila del panel, como tarjeta.
  *
  * Solo pinta: recibe la fila tal como la manda el backend y decide qué enseñar
- * con el diccionario de estados. Las dos acciones que abren un modal (QR y
- * reenvío) las delega a la página, que es quien monta los modales; las dos que
- * navegan (ver la carta, retomar) son enlaces, porque eso es lo que son.
+ * con el diccionario de estados. Las dos acciones que abren un modal (postal
+ * del QR y reenvío) las delega a la página, que es quien monta los modales;
+ * las que navegan (ver la carta, retomar) son enlaces, porque eso es lo que
+ * son. La única que trabaja aquí es "Carta HTML", y la gobierna
+ * `useCardExports`: la tarjeta no sabe cómo se pide la carta ni cómo se compone
+ * el archivo, solo si el botón está ocupado y si algo falló.
  *
  * `draft` y `published` no son dos tarjetas con un `if` gigante: es una tarjeta
  * con dos vestimentas —marco punteado de sticker para lo que está a medias,
@@ -34,11 +38,68 @@ const PRIMARY =
   'inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full bg-wine text-white font-semibold text-xs shadow-[0_10px_24px_-10px_rgba(140,17,40,0.8)] hover:bg-primary transition-colors cursor-pointer';
 
 const SECONDARY =
-  'inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full border border-wine/25 text-wine font-semibold text-xs hover:bg-blush/50 transition-colors cursor-pointer';
+  'inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full border border-wine/25 text-wine font-semibold text-xs hover:bg-blush/50 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-wait disabled:hover:bg-transparent';
 
 /** Nombre legible del tema a partir del slug que guarda el backend. */
 const themeName = (slug: string | null): string | null =>
   slug ? THEME_PRESETS[themeFromSlug(slug)].name : null;
+
+interface PublishedActionsProps {
+  dedication: Dedication;
+  /** Publicada con enlace: es lo que piden la postal, el archivo y el visor. */
+  slug: string;
+  onShowQr: (dedication: Dedication) => void;
+  onResend: (dedication: Dedication) => void;
+}
+
+/**
+ * Pie de una carta publicada. Va aparte para que el hook de las descargas
+ * exista solo donde hay algo que descargar: un borrador no tiene carta que pedir.
+ *
+ * La carta entera se pide al pulsar "Carta HTML", no al pintar: el listado no
+ * la trae, y pedir una por tarjeta solo para tener el botón listo sería gastar
+ * peticiones en cartas que quizá nadie descargue.
+ */
+const PublishedActions: React.FC<PublishedActionsProps> = ({
+  dedication,
+  slug,
+  onShowQr,
+  onResend,
+}) => {
+  const { busy, error, downloadHtml } = useCardExports(() => fetchPublishedLetter(slug));
+
+  return (
+    <>
+      {/* Nueva pestaña: el visor ocupa toda la pantalla y no tiene vuelta al panel. */}
+      <a href={viewerPathFor(slug)} target="_blank" rel="noreferrer" className={PRIMARY}>
+        <span className="material-symbols-outlined text-[16px]">visibility</span>
+        Ver carta
+      </a>
+      <button type="button" onClick={() => onShowQr(dedication)} className={SECONDARY}>
+        <span className="material-symbols-outlined text-[16px]">qr_code_2</span>
+        Postal QR
+      </button>
+      <button
+        type="button"
+        onClick={() => void downloadHtml()}
+        disabled={busy !== null}
+        className={SECONDARY}
+      >
+        <span className="material-symbols-outlined text-[16px]">description</span>
+        {busy === 'html' ? 'Generando…' : 'Carta HTML'}
+      </button>
+      <button type="button" onClick={() => onResend(dedication)} className={SECONDARY}>
+        <span className="material-symbols-outlined text-[16px]">forward_to_inbox</span>
+        Reenviar correo
+      </button>
+      {error && (
+        <p className="w-full text-xs text-error font-medium" role="alert">
+          {error}
+        </p>
+      )}
+    </>
+  );
+};
 
 export const DedicationCard: React.FC<DedicationCardProps> = ({
   dedication,
@@ -58,21 +119,12 @@ export const DedicationCard: React.FC<DedicationCardProps> = ({
   let actions: ReactNode;
   if (published && slug) {
     actions = (
-      <>
-        {/* Nueva pestaña: el visor ocupa toda la pantalla y no tiene vuelta al panel. */}
-        <a href={viewerPathFor(slug)} target="_blank" rel="noreferrer" className={PRIMARY}>
-          <span className="material-symbols-outlined text-[16px]">visibility</span>
-          Ver carta
-        </a>
-        <button type="button" onClick={() => onShowQr(dedication)} className={SECONDARY}>
-          <span className="material-symbols-outlined text-[16px]">qr_code_2</span>
-          QR
-        </button>
-        <button type="button" onClick={() => onResend(dedication)} className={SECONDARY}>
-          <span className="material-symbols-outlined text-[16px]">forward_to_inbox</span>
-          Reenviar correo
-        </button>
-      </>
+      <PublishedActions
+        dedication={dedication}
+        slug={slug}
+        onShowQr={onShowQr}
+        onResend={onResend}
+      />
     );
   } else if (published) {
     // Contrato: una publicada siempre trae slug. Si un día no lo trae, se dice

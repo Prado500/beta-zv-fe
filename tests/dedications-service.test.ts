@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiGet, apiPost, apiUrl } from '../src/utils/api';
-import { publicQrPath } from '../src/modules/editor/services/letters';
 import {
+  fetchPublishedLetter,
   listDedications,
-  qrUrlFor,
   resendDelivery,
   viewerPathFor,
 } from '../src/modules/dedications/services/dedications';
@@ -61,9 +60,40 @@ describe('servicios de "Mis dedicatorias"', () => {
     expect(await resendDelivery(LETTER_ID)).toMatchObject({ status: 'failed' });
   });
 
-  it('qrUrlFor usa el QR público por slug, el mismo que el editor', () => {
-    expect(qrUrlFor(SLUG)).toBe(apiUrl(publicQrPath(SLUG)));
-    expect(qrUrlFor(SLUG)).toContain('/api/v1/public/letters/');
+  it('fetchPublishedLetter pide la carta pública por slug y la traduce con firma, canción y fotos por la ruta pública', async () => {
+    const { signal } = new AbortController();
+    vi.mocked(apiGet).mockResolvedValue({
+      letterId: LETTER_ID,
+      publishedVersion: 1,
+      title: 'Para ti',
+      recipientName: 'Ana',
+      body: 'Eres mi lugar favorito.\n\nDe parte de: Sebastián\n\nCanción: https://youtu.be/dQw4w9WgXcQ',
+      theme: 'pastel-pink',
+      photos: [{ position: 0, caption: 'uno.jpg', url: `/api/v1/public/letters/${SLUG}/photos/0` }],
+      publishedAt: '2026-09-07T18:09:12.774Z',
+    });
+
+    const letter = await fetchPublishedLetter(SLUG, signal);
+
+    // Sin sesión y sin CSRF: es el mismo endpoint que abre el visor.
+    expect(apiGet).toHaveBeenCalledWith(`/api/v1/public/letters/${SLUG}`, signal);
+    expect(letter).toEqual({
+      title: 'Para ti',
+      recipient: 'Ana',
+      recipientEmail: '',
+      sender: 'Sebastián',
+      message: 'Eres mi lugar favorito.',
+      songUrl: 'https://youtu.be/dQw4w9WgXcQ',
+      themeId: 'pastelPink',
+      photos: [
+        {
+          tempId: null,
+          previewUrl: apiUrl(`/api/v1/public/letters/${SLUG}/photos/0`),
+          fileName: 'uno.jpg',
+          status: 'ready',
+        },
+      ],
+    });
   });
 
   it('viewerPathFor apunta al visor interno con el slug codificado', () => {
