@@ -15,17 +15,24 @@
 const easeInOutCubic = (t: number): number =>
   t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
 
-const MIN_MS = 340;
+const MIN_MS = 380;
 /*
- * El tope estaba en 820 ms, y de la barra a "Precio" hay 7400 px: el recorrido
- * entero se hacía en poco más de medio segundo y no se leía como un viaje sino
- * como un corte con estela. Medido: pasaba de 0 a 7394 px en catorce
- * fotogramas. Con 1150 ms el trayecto largo se ve, y los cortos siguen siendo
- * cortos porque la duración es proporcional.
+ * El tope, dos veces revisado, y por el mismo motivo las dos.
+ *
+ * De la barra a "Precio" hay 7400 px. Con 820 ms eso son 9000 px/s y con
+ * 1150 ms, 5900: medido, la animación corría —47 muestras, ningún salto por
+ * encima del 12% del recorrido— pero a esa velocidad el contenido pasa como un
+ * borrón y se percibe como un corte, no como un viaje. A 1700 ms baja a unos
+ * 4300 px/s, que ya se sigue con la vista.
+ *
+ * Los trayectos cortos no se enteran: la duración es proporcional y un salto
+ * de 1200 px sigue durando poco más de medio segundo.
  */
-const MAX_MS = 1150;
+const MAX_MS = 1700;
 /** Milisegundos por cada mil píxeles de recorrido. */
-const MS_PER_1000PX = 110;
+const MS_PER_1000PX = 165;
+/** Lo que dura el recorrido con "reducir movimiento": corto, pero no un salto. */
+const REDUCED_MS = 320;
 
 /** Gestos con los que la persona retoma el control a mitad de recorrido. */
 const SURRENDER_EVENTS: (keyof WindowEventMap)[] = ['wheel', 'touchstart', 'keydown'];
@@ -65,13 +72,16 @@ export const stopSmoothScroll = (): void => {
 /**
  * Lleva la página hasta `el`.
  *
+ * `onArrive` se llama al llegar, y solo al llegar: si la persona toma el
+ * control a mitad de camino no se la lleva a ninguna parte.
+ *
  * Con "reducir movimiento" activo salta directo al destino: ese ajuste existe
  * para quien se marea con el desplazamiento, y aquí el viaje es el efecto.
  * Cualquier gesto de la persona manda: si toca la rueda, la pantalla o el
  * teclado a mitad del recorrido, la animación se aparta y le deja el control,
  * en vez de seguir arrastrándola.
  */
-export const smoothScrollTo = (el: Element): void => {
+export const smoothScrollTo = (el: Element, onArrive?: () => void): void => {
   stopSmoothScroll();
 
   const from = window.scrollY;
@@ -79,12 +89,18 @@ export const smoothScrollTo = (el: Element): void => {
   const distance = to - from;
   if (Math.abs(distance) < 2) return;
 
-  if (prefersReducedMotion()) {
-    window.scrollTo({ top: to, behavior: 'instant' });
-    return;
-  }
-
-  const duration = scrollDuration(distance);
+  /*
+   * Con "reducir movimiento" NO se teletransporta: se acorta.
+   *
+   * Antes saltaba al destino en un solo fotograma, y eso es justo lo que se
+   * ve como un corte: 1241 px de golpe desorientan más que un recorrido
+   * breve. Quien activa ese ajuste huye del movimiento largo y decorativo
+   * —parallax, zooms, cosas que se mueven solas—, no de un desplazamiento
+   * funcional que dura un cuarto de segundo y enseña a dónde te llevaron.
+   *
+   * Se reduce, que es lo que pide la preferencia, en vez de eliminarse.
+   */
+  const duration = prefersReducedMotion() ? REDUCED_MS : scrollDuration(distance);
   const surrender = () => stopSmoothScroll();
   SURRENDER_EVENTS.forEach((name) => window.addEventListener(name, surrender, { passive: true }));
   release = () => SURRENDER_EVENTS.forEach((name) => window.removeEventListener(name, surrender));
@@ -103,6 +119,9 @@ export const smoothScrollTo = (el: Element): void => {
     frame = 0;
     release?.();
     release = null;
+    /* Al final, y no antes: lo que se haga aquí compite por el mismo hilo
+       que la animación, y un solo fotograma perdido se ve como un tirón. */
+    onArrive?.();
   };
   frame = requestAnimationFrame(step);
 };

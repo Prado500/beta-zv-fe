@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import LandingPage from '../src/modules/promo/page/LandingPage';
 import { Header } from '../src/modules/promo/components/layout/Header';
@@ -88,15 +88,28 @@ describe('useSmoothAnchors · desplazamiento suave', () => {
 
     await user.click(link());
 
-    expect(hash()).toBe('#destino');
     // Todavía no corrió ningún fotograma: nada se ha movido.
     expect(scrollCalls()).toHaveLength(0);
+    /*
+     * Y la URL tampoco ha cambiado todavía. `navigate` repinta la página
+     * entera, y lanzado junto a la animación se comía uno de sus primeros
+     * fotogramas: eso es el tirón que se veía. Llega al final.
+     */
+    expect(hash()).toBe('');
 
-    vi.advanceTimersByTime(2000);
+    /*
+     * En `act`: ahora la URL se actualiza desde el último fotograma y no
+     * desde el clic, así que hay que dejar que React vuelque ese cambio
+     * antes de leer el DOM.
+     */
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
 
     // Varios pasos, no un salto, y el último deja la sección arriba del todo.
     expect(scrollCalls().length).toBeGreaterThan(3);
     expect(lastTop()).toBe(TARGET_TOP);
+    expect(hash()).toBe('#destino');
   });
 
   it('con Ctrl pulsado no se entromete: eso es "abrir aparte"', async () => {
@@ -123,7 +136,7 @@ describe('useSmoothAnchors · desplazamiento suave', () => {
     expect(hash()).toBe('');
   });
 
-  it('con "reducir movimiento" salta directo al destino, en un solo paso', async () => {
+  it('con "reducir movimiento" el recorrido se acorta, pero no se teletransporta', async () => {
     vi.spyOn(window, 'matchMedia').mockImplementation((query) =>
       mediaList(query, query.includes('prefers-reduced-motion')),
     );
@@ -131,11 +144,21 @@ describe('useSmoothAnchors · desplazamiento suave', () => {
     renderPage();
 
     await user.click(link());
-    vi.advanceTimersByTime(2000);
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
 
-    expect(scrollCalls()).toHaveLength(1);
+    /*
+     * Varios pasos, no uno: saltar 1400 px de golpe desorienta más que un
+     * recorrido de un cuarto de segundo. La preferencia pide reducir el
+     * movimiento, no suprimirlo — y este es funcional, no decorativo.
+     */
+    expect(scrollCalls().length).toBeGreaterThan(1);
     expect(lastTop()).toBe(TARGET_TOP);
     expect(hash()).toBe('#destino');
+
+    // Pero bastante más corto que el normal, que pasa de 30 pasos
+    expect(scrollCalls().length).toBeLessThan(30);
   });
 
   it('un gesto a mitad de camino corta la animación y le deja el control a la persona', async () => {

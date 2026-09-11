@@ -35,8 +35,16 @@ export const useSmoothAnchors = (): void => {
       if (!target) return;
 
       event.preventDefault();
-      smoothScrollTo(target);
-      navigate(href);
+      /*
+       * La URL se actualiza AL LLEGAR, no al salir.
+       *
+       * `navigate` cambia el estado del router y eso repinta la landing entera.
+       * Lanzado a la vez que la animación, ese trabajo caía dentro de sus
+       * primeros fotogramas y se comía alguno: medido, un avance de 198 px en
+       * un fotograma, entre vecinos de 85 — justo el tirón que se veía al bajar
+       * a "Estilos". Al final del recorrido no le estorba a nadie.
+       */
+      smoothScrollTo(target, () => navigate(href));
     };
 
     document.addEventListener('click', onClick);

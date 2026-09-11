@@ -77,10 +77,13 @@ export const Header: React.FC<HeaderProps> = ({ onSignIn }) => {
 
         <div className="flex items-center gap-2 md:gap-4 shrink-0">
           <div className="hidden md:flex items-center gap-3">
-            {/* Ruta de la app: `Link` para no recargar la página */}
-            <Link className={`hidden xl:inline ${NAV_LINK}`} to="/mis-dedicatorias">
-              Mis Dedicatorias
-            </Link>
+            {/*
+              "Mis dedicatorias" NO va aquí: vive dentro del menú del usuario,
+              que es donde está el resto de su cuenta. Estaba en los dos sitios
+              a la vez, ocupando sitio en una barra que ya iba justa y repitiendo
+              el mismo destino a dos centímetros. Sin sesión no se ofrece, que
+              es coherente: el panel pide iniciarla igualmente.
+            */}
             {/* La línea separa lo que es navegar de lo que es tu cuenta */}
             <span aria-hidden="true" className="hidden xl:block h-5 w-px bg-wine/15" />
             {signedIn && auth.user ? (
