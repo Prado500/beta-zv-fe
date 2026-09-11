@@ -1,6 +1,7 @@
 import type { ThemePalette } from '../../themePalette';
 import { withAlpha } from '../../themePalette';
 import { edgeCss, textureCss, type ThemeDecor } from '../../themeDecor';
+import { stageColors } from '../../stageTheme';
 import { BLOOM_CSS } from '../../bloomArt';
 import { PHRASE_CSS } from '../../phraseLayout';
 import { MEM_CSS } from '../../memoriesLayout';
@@ -17,21 +18,8 @@ import { MEM_CSS } from '../../memoriesLayout';
 export const buildStyles = (palette: ThemePalette, decor: ThemeDecor): string => {
   const texture = textureCss(decor.texture, palette.text);
   const edge = edgeCss(decor.edge, decor.metal);
-  const stage = palette.isDark
-    ? {
-        base: '#0d0a10',
-        glow1: withAlpha(palette.accent, 0.18),
-        glow2: withAlpha(palette.cardBg, 0.35),
-        ink: 'rgba(255,255,255,0.55)',
-        confetti: 'rgba(255,255,255,0.5)',
-      }
-    : {
-        base: '#f6efe9',
-        glow1: withAlpha(palette.accent, 0.12),
-        glow2: withAlpha(palette.border, 0.5),
-        ink: 'rgba(94,10,27,0.6)',
-        confetti: 'rgba(140,17,40,0.55)',
-      };
+  /* Los mismos que usa el visor público: `utils/stageTheme`. */
+  const stage = stageColors(palette);
 
   return `
 :root {

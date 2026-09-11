@@ -14,6 +14,7 @@ import { usePhoneScale } from '../hooks/usePhoneScale';
 import { useCardChoreography } from '../hooks/useCardChoreography';
 import { usePhotoLightbox } from '../hooks/usePhotoLightbox';
 import { SongPlayer } from './SongPlayer';
+import { CardStage } from './CardStage';
 import { SongChip } from './SongChip';
 import { PhotoLightbox } from './PhotoLightbox';
 import { EnvelopeScene } from './scenes/EnvelopeScene';
@@ -286,11 +287,20 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ data, isFullView = f
      * `vh` para que la barra del navegador móvil no recorte la carta.
      */
     return (
-      <div className="w-full min-h-dvh bg-neutral-900 flex justify-center items-center p-0 md:p-6">
-        <div className="w-full max-w-md md:max-w-lg h-dvh md:h-[85vh] md:rounded-4xl shadow-2xl overflow-hidden flex flex-col bg-white relative">
+      <CardStage palette={palette} recipient={recipientName}>
+        {/*
+          Medidas del teléfono, las mismas del HTML descargable: 360 px de
+          ancho como tope, la pantalla entera en móvil y una tarjeta con
+          esquinas y sombra de 640 px arriba. Antes era `max-w-lg` (512 px) y
+          la carta salía casi cuadrada, con el contenido nadando a lo ancho.
+        */}
+        <div
+          className="relative z-10 flex w-full max-w-[360px] flex-col overflow-hidden h-dvh sm:h-[820px] sm:max-h-[92dvh] sm:rounded-[28px] sm:shadow-[0_40px_80px_-24px_rgba(0,0,0,0.35),0_4px_14px_-6px_rgba(0,0,0,0.18)]"
+          style={{ backgroundColor: palette.cardBg, border: `1px solid ${palette.border}` }}
+        >
           {body}
         </div>
-      </div>
+      </CardStage>
     );
   }
 

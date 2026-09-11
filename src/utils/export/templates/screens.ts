@@ -3,6 +3,7 @@ import type { ThemePalette } from '../../themePalette';
 import { motifSvg, type ThemeDecor } from '../../themeDecor';
 import { COVER_DUST, garlandSvg, giftSvg, type Gift, type GiftPaint } from '../../themeGifts';
 import { withAlpha } from '../../themePalette';
+import { stageRoseColors } from '../../stageTheme';
 import { cornerFlourish, heartConfetti, icon, ornament, rose } from './ornaments';
 
 /** Colores con los que se tiñen los objetos del tema. */
@@ -34,8 +35,8 @@ export interface CardCopy {
  * rosas y un rótulo, en la misma línea visual del resto del producto.
  */
 export const buildStageDecor = (palette: ThemePalette, copy: CardCopy): string => {
-  const roseColor = palette.isDark ? withAlpha(palette.accent, 0.9) : '#8c1128';
-  const leafColor = palette.isDark ? 'rgba(148,163,184,0.7)' : '#6b7f5c';
+  /* Los mismos tintes que usa el visor público: `utils/stageTheme`. */
+  const { petal: roseColor, leaf: leafColor } = stageRoseColors(palette);
 
   return `
   <div class="stage__glow"></div>
