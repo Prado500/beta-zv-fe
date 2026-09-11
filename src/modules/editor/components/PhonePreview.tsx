@@ -112,9 +112,18 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ data, isFullView = f
   const lightbox = usePhotoLightbox(photoUrls.length);
   const reading = card.view === 'card';
 
+  /*
+   * Umbral 0 y no 0,5: el chip se esconde en cuanto el reproductor ASOMA, no
+   * cuando ya se ve medio.
+   *
+   * Con el reproductor al final de la carta, entra en pantalla justo por
+   * abajo, que es donde vive el chip: entre el 0% y el 50% visible los dos
+   * coincidían y el mando quedaba encima del vídeo. YouTube prohíbe tapar el
+   * reproductor, así que la regla es "si asoma, el chip se va".
+   */
   const songInView = useInView(songSectionRef, {
     root: cardScrollRef,
-    threshold: 0.5,
+    threshold: 0,
     enabled: reading && Boolean(videoId),
   });
 

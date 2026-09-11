@@ -7,6 +7,7 @@ import {
   VALID_LETTER,
   confirm,
   confirmButton,
+  emailField,
   fillStepOne,
   goToStepThree,
   installFreezeClock,
@@ -14,6 +15,7 @@ import {
   renderEditor,
   setupEditorUser,
   submitButton,
+  typeEmail,
 } from './editorHarness';
 
 /**
@@ -81,12 +83,12 @@ describe('EditorPage · confirmación del correo', () => {
     const dialog = await openConfirm(user);
 
     // El texto es el contrato con el usuario: dice qué llega, a dónde y qué ya no se podrá cambiar.
-    expect(dialog.textContent).toContain('Verifica que este correo sea correcto');
-    expect(dialog.textContent).toContain(VALID_LETTER.email);
-    expect(dialog.textContent).toContain('Asegúrate de que tu carta esté exactamente como deseas');
+    expect(dialog.textContent).toContain('Es lo que vas a entregar');
+    expect(dialog.textContent).toContain('archivo descargable');
+    expect(dialog.textContent).toContain('código QR');
     expect(dialog.textContent).toContain('podrás editarla');
-    expect(dialog.textContent).toContain('llegará el código QR, el enlace y el archivo descargable');
-    expect(dialog.textContent).toContain('Revisa que no haya errores de tipeo');
+    // El correo se pide AQUÍ: el asistente ya no lo lleva, así que nace vacío.
+    expect((emailField() as HTMLInputElement).value).toBe('');
 
     // Lo importante: la petición sigue sin salir.
     expect(createLetter).not.toHaveBeenCalled();
@@ -105,7 +107,7 @@ describe('EditorPage · confirmación del correo', () => {
     expect(confirmButton().textContent).toContain('Espera 1');
     tick(1000);
     expect(confirmButton().disabled).toBe(false);
-    expect(confirmButton().textContent).toContain('Sí, es correcto');
+    expect(confirmButton().textContent).toContain('Enviar mi carta');
   });
 
   it('ni el clic ni el Enter mandan la carta antes de que pase el freno', async () => {
@@ -113,8 +115,9 @@ describe('EditorPage · confirmación del correo', () => {
     vi.mocked(createLetter).mockResolvedValue(QUEUED);
     await openConfirm(user);
 
+    await typeEmail(user);
     await user.click(confirmButton());
-    await user.click(screen.getByLabelText(/Corrígelo aquí si hace falta/i));
+    await user.click(emailField());
     await user.keyboard('{Enter}');
     expect(createLetter).not.toHaveBeenCalled();
 
@@ -163,15 +166,12 @@ describe('EditorPage · confirmación del correo', () => {
     expect(confirmButton().textContent).toContain('Espera 3');
   });
 
-  it('corregir el correo dentro del modal manda el corregido, no el original', async () => {
+  it('el correo que se escribe en el modal es el que viaja al backend', async () => {
     const user = setupEditorUser();
     vi.mocked(createLetter).mockResolvedValue(QUEUED);
     await openConfirm(user);
 
-    const field = screen.getByLabelText(/Corrígelo aquí si hace falta/i);
-    await user.clear(field);
-    await user.type(field, 'correcto@ejemplo.com');
-    await confirm(user);
+    await confirm(user, 'correcto@ejemplo.com');
 
     await waitFor(() =>
       expect(createLetter).toHaveBeenCalledWith(

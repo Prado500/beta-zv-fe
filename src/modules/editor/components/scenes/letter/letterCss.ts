@@ -482,6 +482,13 @@ export const LETTER_CSS = `
   .letter__hint-bob { animation: none; }
 }
 
-/* "Nuestra canción": el reproductor visible, bajo el membrete y antes del texto */
-.letter-song { position: relative; z-index: 1; margin: 6px 4px 12px; }
+/* "Nuestra canción": el reproductor visible, tras la firma y antes del lacre.
+   Fuera de la hoja, centrado, ocupando lo que necesita y nada más. */
+.letter-song {
+  position: relative;
+  z-index: 2;
+  margin: 22px auto 0;
+  width: 100%;
+  max-width: 320px;
+}
 `;

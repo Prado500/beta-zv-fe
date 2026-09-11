@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { CornerFlourish, Ornament } from '../../../components/decor';
 import { fieldClass } from '../../../components/ui/formStyles';
 import { useCountdown } from '../../../utils/useCountdown';
+import { email as emailRule } from '../../../utils/validation';
 
 /**
  * Última parada antes de mandar la carta: confirmar el correo, con freno.
@@ -24,6 +25,9 @@ import { useCountdown } from '../../../utils/useCountdown';
  * para saltarse el freno.
  */
 
+/** El aviso del validador, sin montar un formulario entero para un campo. */
+const EMAIL_CHECK = emailRule('Escribe un correo valido, como ana@ejemplo.com.'.replace('valido','válido'));
+
 /** Segundos que el botón de confirmar permanece bloqueado al abrirse. */
 export const CONFIRM_DELAY_SECONDS = 3;
 
@@ -44,9 +48,14 @@ export const EmailConfirmModal: React.FC<EmailConfirmModalProps> = ({
   onCancel,
 }) => {
   const [value, setValue] = useState(email);
+  /** El aviso del correo no sale mientras se teclea, solo al intentar enviar. */
+  const [tried, setTried] = useState(false);
   const field = useRef<HTMLInputElement>(null);
   const left = useCountdown(CONFIRM_DELAY_SECONDS);
   const locked = left > 0;
+
+  const check = EMAIL_CHECK.safeParse(value);
+  const emailError = tried && !check.success ? check.error?.issues[0]?.message : null;
 
   // El foco va al correo, que es lo que hay que revisar; el botón aún no responde.
   useEffect(() => {
@@ -65,6 +74,11 @@ export const EmailConfirmModal: React.FC<EmailConfirmModalProps> = ({
     // El Enter respeta el bloqueo igual que el ratón; si no, el freno duraría
     // lo que tarda alguien en apoyar el meñique en la tecla.
     if (locked || submitting) return;
+    setTried(true);
+    if (!check.success) {
+      field.current?.focus();
+      return;
+    }
     onConfirm(value.trim());
   };
 
@@ -101,22 +115,28 @@ export const EmailConfirmModal: React.FC<EmailConfirmModalProps> = ({
             id="confirm-email-title"
             className="font-headline-md text-xl font-bold text-on-background"
           >
-            Confirma tu{' '}
+            ¿A dónde te la{' '}
             <span className="font-script font-normal text-wine text-[1.5em] leading-none">
-              correo
+              enviamos
             </span>
+            ?
           </h2>
           <Ornament tone="gold" width={150} className="mx-auto mt-1 mb-3" />
 
+          {/*
+            Dos avisos y en este orden: primero qué llega ahí —porque de eso
+            depende que la dirección importe— y después que ya no hay vuelta
+            atrás. Al revés, lo segundo se lee como una amenaza sin motivo.
+          */}
           <p className="font-body-md text-sm text-on-surface-variant leading-relaxed">
-            Verifica que este correo sea correcto:{' '}
-            <strong className="text-wine break-all">{value}</strong>. Asegúrate de que tu carta esté
-            exactamente como deseas. Una vez enviada, <strong className="text-wine">NO</strong> podrás
-            editarla.
+            A esta dirección llegan el <strong className="text-wine">enlace</strong> de la carta, el{' '}
+            <strong className="text-wine">código QR</strong> y el{' '}
+            <strong className="text-wine">archivo descargable</strong>. Es lo que vas a entregar,
+            así que escríbela bien.
           </p>
           <p className="font-body-md text-xs text-on-surface-variant/90 leading-relaxed mt-2">
-            A esta dirección llegará el código QR, el enlace y el archivo descargable. Revisa que
-            no haya errores de tipeo.
+            Asegúrate también de que la carta esté exactamente como la deseas: una vez enviada,{' '}
+            <strong className="text-wine">NO</strong> podrás editarla.
           </p>
 
           <div className="w-full mt-5 text-left">
@@ -124,7 +144,12 @@ export const EmailConfirmModal: React.FC<EmailConfirmModalProps> = ({
               className="block text-[11px] font-bold text-wine/75 uppercase tracking-wider mb-1.5"
               htmlFor="confirm-email"
             >
-              Corrígelo aquí si hace falta
+              {/*
+                El correo es el de quien compra, no el de su pareja, salvo que
+                él quiera. Decirlo en el propio rótulo evita el error más caro
+                del producto: mandarle la sorpresa a quien iba a recibirla.
+              */}
+              Tu correo (o donde quieras recibir el regalo para entregarlo tú)
             </label>
             <input
               ref={field}
@@ -135,8 +160,19 @@ export const EmailConfirmModal: React.FC<EmailConfirmModalProps> = ({
               disabled={submitting}
               autoComplete="email"
               spellCheck={false}
-              className={fieldClass('idle', 'text-center font-medium disabled:opacity-60')}
+              placeholder="tucorreo@ejemplo.com"
+              aria-invalid={Boolean(emailError)}
+              aria-describedby={emailError ? 'confirm-email-error' : undefined}
+              className={fieldClass(
+                emailError ? 'error' : 'idle',
+                'text-center font-medium disabled:opacity-60',
+              )}
             />
+            {emailError && (
+              <p id="confirm-email-error" className="text-sm text-error mt-1.5" role="alert">
+                {emailError}
+              </p>
+            )}
           </div>
 
           {error && (
@@ -151,7 +187,7 @@ export const EmailConfirmModal: React.FC<EmailConfirmModalProps> = ({
               disabled={locked || submitting}
               className="w-full py-3.5 rounded-full bg-wine text-white font-semibold text-sm shadow-lg hover:bg-primary transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-wine"
             >
-              {submitting ? 'Enviando tu carta…' : locked ? `Espera ${left}…` : 'Sí, es correcto'}
+              {submitting ? 'Enviando tu carta…' : locked ? `Espera ${left}…` : 'Enviar mi carta'}
               <span className="material-symbols-outlined text-[18px]">
                 {locked && !submitting ? 'hourglass_top' : 'check'}
               </span>

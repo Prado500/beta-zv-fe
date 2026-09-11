@@ -82,12 +82,13 @@ const renderCard = async (data: DedicationForm = FORM) => {
 };
 
 describe('PhonePreview: la canción', () => {
-  it('el reproductor existe desde el principio, antes del texto, y no hay iframes ocultos', async () => {
+  it('el reproductor existe desde el principio, al final de la carta, y no hay iframes ocultos', async () => {
     await renderCard();
 
     const section = screen.getByLabelText('Canción de la dedicatoria');
     const message = screen.getByText(/Gracias por cada día/);
-    expect(section.compareDocumentPosition(message) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Va DESPUÉS del texto: la carta se lee de un tirón y la canción cierra
+    expect(message.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(section.querySelector('iframe')).not.toBeNull();
     expect(document.querySelector('iframe.hidden')).toBeNull();
     expect(yt.last().playVideo).not.toHaveBeenCalled();

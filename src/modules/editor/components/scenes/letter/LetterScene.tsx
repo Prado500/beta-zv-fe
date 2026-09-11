@@ -21,8 +21,8 @@ import { useRevealOnScroll } from './useRevealOnScroll';
  * - La firma se escribe sola (`Signature`) y después mantener presionado
  *   sella la carta con lacre (`Seal`). Debajo, la marca.
  * - "Nuestra canción" no la pinta esta escena: recibe el reproductor ya
- *   armado en `song` y lo coloca bajo el membrete, antes del texto. Así el
- *   reproductor visible, su estado y sus políticas viven en un solo sitio.
+ *   armado en `song` y lo coloca al final, tras la firma. Así el reproductor
+ *   visible, su estado y sus políticas viven en un solo sitio.
  *
  * Está siempre montada, también con el sobre cerrado: el reproductor tiene
  * que existir antes del toque, y al activarse solo cambia de opacidad.
@@ -243,9 +243,6 @@ export const LetterScene: React.FC<LetterSceneProps> = ({
                 <Ornament color={decor.metal} motif={decor.motif} width={150} className="mx-auto opacity-95" />
               </header>
 
-              {/* "Nuestra canción", visible y antes del texto: primero suena, luego se lee. */}
-              {song && <div className="letter-song">{song}</div>}
-
               <div className="letter-body">
                 <p className="letter-greeting reveal" data-reveal style={{ color: palette.accent }}>
                   Querida/o {recipient},
@@ -280,6 +277,18 @@ export const LetterScene: React.FC<LetterSceneProps> = ({
               </div>
             </article>
           </div>
+
+          {/*
+            "Nuestra canción", al final: la carta se lee de un tirón y la música
+            aparece cuando ya se firmó. Va fuera de la hoja, apoyada sobre el
+            fondo del tema.
+
+            Lo que cuesta bajarla: al abrirse la carta el reproductor queda bajo
+            el pliegue, y YouTube pide verlo para arrancar solo. Si lo rechaza,
+            el mando flotante —que aparece justo mientras el vídeo no se ve—
+            lo dice y un toque lleva hasta él.
+          */}
+          {song && <div className="letter-song">{song}</div>}
 
           {/* Sellar no corta la canción: la música sólo se detiene al cerrar */}
           {/*

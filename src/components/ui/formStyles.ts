@@ -13,10 +13,20 @@ export type FieldTone = 'idle' | 'error' | 'valid';
 const BASE =
   'w-full bg-paper/60 rounded-xl px-4 py-3 outline-none border transition-all focus:bg-white focus:ring-2';
 
+/*
+ * El aviso es el borde, no el campo entero.
+ *
+ * El error tenía además el fondo teñido de rojo (`bg-error/5`): con tres campos
+ * vacíos a la vez el formulario se encendía entero y parecía una bronca, cuando
+ * lo único que pasa es que faltan datos. Basta con el borde.
+ *
+ * Y el verde era esmeralda puro, un color que no existe en el resto de la
+ * paleta; aquí va apagado, que confirmar no necesita gritar.
+ */
 const TONES: Record<FieldTone, string> = {
   idle: 'border-wine/15 focus:border-wine focus:ring-wine/15',
-  error: 'border-error bg-error/5 focus:border-error focus:ring-error/20',
-  valid: 'border-emerald-500/70 focus:border-emerald-600 focus:ring-emerald-500/20',
+  error: 'border-error/70 focus:border-error focus:ring-error/15',
+  valid: 'border-emerald-600/35 focus:border-emerald-600/60 focus:ring-emerald-600/10',
 };
 
 /**

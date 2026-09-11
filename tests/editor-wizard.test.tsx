@@ -127,7 +127,7 @@ describe('EditorPage · asistente por pasos', () => {
     fireEvent.submit(editorForm());
 
     const dialog = await screen.findByRole('dialog');
-    expect(dialog.textContent).toContain('Verifica que este correo sea correcto');
+    expect(dialog.textContent).toContain('Es lo que vas a entregar');
     expect(createLetter).not.toHaveBeenCalled();
   });
 });
