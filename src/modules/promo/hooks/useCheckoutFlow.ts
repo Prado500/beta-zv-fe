@@ -70,10 +70,17 @@ const registerSchema = z
     documentType: z.enum(DOCUMENT_TYPE_CODES, { error: 'Elige tu tipo de documento.' }),
     documentNumber: z.string().trim().min(1, 'El número de documento es obligatorio.'),
     /**
-     * `literal(true)`: no basta con que el campo exista, tiene que estar marcado. La
-     * Ley 1581 exige autorización expresa, y una casilla sin marcar no lo es.
+     * No basta con que el campo exista: tiene que estar marcado. La Ley 1581 exige
+     * autorización expresa, y una casilla sin marcar no lo es.
+     *
+     * Es `boolean().refine(...)` y no `literal(true)` **a propósito**. `literal` emite
+     * un issue `invalid_value`, que Zod 4 trata como NO continuable: aborta todos los
+     * refinamientos de objeto posteriores. Y como esta casilla nace en `false` y sigue
+     * así durante todo el primer paso, el aviso del formato del documento —que vive en
+     * el `superRefine` de abajo— no llegaría a ejecutarse jamás. Comprobado contra la
+     * versión instalada de zod; hay una prueba que lo fija.
      */
-    acceptsTerms: z.literal(true, {
+    acceptsTerms: z.boolean().refine((accepted) => accepted, {
       error: 'Necesitamos tu autorización para crear la cuenta.',
     }),
   })
