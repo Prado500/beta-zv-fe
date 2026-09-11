@@ -16,6 +16,12 @@ import {
   type UserResponse,
 } from '../../auth/services/auth';
 import { useAuth } from '../../auth/useAuth';
+import {
+  DEFAULT_DOCUMENT_TYPE,
+  DOCUMENT_TYPE_CODES,
+  documentNumberProblem,
+} from '../../legal/documentTypes';
+import { useLegalTerms } from '../../legal/hooks/useLegalTerms';
 import { createPurchase, newIdempotencyKey } from '../services/checkout';
 import { rememberPurchaseId } from '../services/purchaseSession';
 
@@ -61,6 +67,15 @@ const registerSchema = z
     email: email(),
     password: passwordRule,
     confirmPassword: z.string(),
+    documentType: z.enum(DOCUMENT_TYPE_CODES, { error: 'Elige tu tipo de documento.' }),
+    documentNumber: z.string().trim().min(1, 'El número de documento es obligatorio.'),
+    /**
+     * `literal(true)`: no basta con que el campo exista, tiene que estar marcado. La
+     * Ley 1581 exige autorización expresa, y una casilla sin marcar no lo es.
+     */
+    acceptsTerms: z.literal(true, {
+      error: 'Necesitamos tu autorización para crear la cuenta.',
+    }),
   })
   .refine((values) => values.password === values.confirmPassword, {
     error: 'Las dos contraseñas no coinciden.',
@@ -75,6 +90,22 @@ const registerSchema = z
      * en el que deben aparecer los mensajes.
      */
     when: (payload) => z.object({ password: passwordRule }).safeParse(payload.value).success,
+  })
+  /**
+   * El formato del número depende del tipo: una cédula solo lleva dígitos, un
+   * pasaporte también letras. Va en un refinamiento de objeto porque necesita los
+   * dos campos a la vez; el mensaje se pinta bajo el número, que es el que se
+   * corrige.
+   */
+  .superRefine((values, ctx) => {
+    // Zod 4 ejecuta este refinamiento aunque otros campos hayan fallado, así que sin
+    // esta guarda un número vacío sacaría dos avisos a la vez: "es obligatorio" y
+    // "solo admite dígitos". Manda el primero, que es el que se puede arreglar.
+    if (!values.documentNumber) return;
+    const problem = documentNumberProblem(values.documentType, values.documentNumber);
+    if (problem) {
+      ctx.addIssue({ code: 'custom', message: problem, path: ['documentNumber'] });
+    }
   });
 
 /**
@@ -104,6 +135,9 @@ export interface CheckoutInput {
   email: string;
   password: string;
   confirmPassword: string;
+  documentType: string;
+  documentNumber: string;
+  acceptsTerms: boolean;
 }
 
 export type CheckoutValues = z.output<typeof checkoutSchema>;
@@ -131,7 +165,7 @@ export type CheckoutStep = 'account' | 'confirm-email' | 'password' | 'login' | 
 
 /** Campos que deben estar sanos para salir de cada tramo del alta. */
 const STEP_FIELDS = {
-  account: ['name', 'email'],
+  account: ['name', 'documentType', 'documentNumber', 'email'],
   'confirm-email': ['email'],
 } as const satisfies Partial<Record<CheckoutStep, readonly (keyof CheckoutInput)[]>>;
 
@@ -148,6 +182,10 @@ const DEFAULTS: CheckoutInput = {
   email: '',
   password: '',
   confirmPassword: '',
+  documentType: DEFAULT_DOCUMENT_TYPE,
+  documentNumber: '',
+  // Nunca nace marcada: una casilla premarcada no es consentimiento válido.
+  acceptsTerms: false,
 };
 
 const modeOf = (step: CheckoutStep): CheckoutMode => (step === 'login' ? 'login' : 'register');
@@ -202,6 +240,10 @@ export const useCheckoutFlow = ({ intent, onSignedIn }: CheckoutOptions) => {
    * ese hueco: sin esto saldrían dos peticiones por una sola intención.
    */
   const inFlight = useRef(false);
+  // Se piden al llegar al paso de la contraseña: ahí es donde se muestran y donde se
+  // envía su versión. Pedirlos al abrir el modal gastaría una petición por cada
+  // persona que ni llega a ese paso.
+  const terms = useLegalTerms(step === 'password');
 
   /** Cambia de tramo y deja el esquema en la rama que toca. */
   const go = useCallback(
@@ -311,9 +353,25 @@ export const useCheckoutFlow = ({ intent, onSignedIn }: CheckoutOptions) => {
           // Se arma el alta campo a campo en vez de reenviar `values`: el backend
           // declara `extra="forbid"` y `confirmPassword` —que nunca fue suyo, solo
           // sirvió para cazar la errata— tumbaría la petición con un 422.
-          await register({ name: values.name, email: values.email, password: values.password });
+          await register({
+            name: values.name,
+            email: values.email,
+            password: values.password,
+            documentType: values.documentType,
+            documentNumber: values.documentNumber,
+            acceptedTermsVersion: terms.terms?.version ?? '',
+          });
         } catch (problem) {
-          if (!(problem instanceof ApiError) || problem.status !== 409) throw problem;
+          // Solo el correo repetido significa "ya tienes cuenta". El conflicto de
+          // documento (REGISTRATION_CONFLICT) es otra cosa: mandar ahí a iniciar
+          // sesión dejaría a la persona intentando entrar en una cuenta ajena.
+          if (
+            !(problem instanceof ApiError) ||
+            problem.status !== 409 ||
+            problem.code !== 'EMAIL_IN_USE'
+          ) {
+            throw problem;
+          }
           accountExisted = true;
         }
 
@@ -458,5 +516,6 @@ export const useCheckoutFlow = ({ intent, onSignedIn }: CheckoutOptions) => {
     switchMode,
     retry,
     switchAccount,
+    terms,
   };
 };
