@@ -77,7 +77,7 @@ describe('EditorPage · botones durante la espera', () => {
     const pending = await freeze(user);
 
     const cancel = screen.getByRole('button', {
-      name: /No, quiero revisarlo/i,
+      name: /No, corregir el correo/i,
     }) as HTMLButtonElement;
     await waitFor(() => expect(cancel.disabled).toBe(true));
 

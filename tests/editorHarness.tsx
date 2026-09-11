@@ -74,8 +74,12 @@ export const submitButton = () =>
   );
 
 /** El botón de confirmar, en cualquiera de sus tres caras: freno, listo o enviando. */
+/** El botón de "Continuar": cierra el paso de escribir y abre el de verificar. */
+export const continueButton = () => asButton(screen.getByRole('button', { name: /^Continuar/i }));
+
+/** El botón de enviar, en sus tres caras: freno, listo o enviando. */
 export const confirmButton = () =>
-  asButton(screen.getByRole('button', { name: /Enviar mi carta|Enviando tu carta|Espera \d/i }));
+  asButton(screen.getByRole('button', { name: /Sí, es correcto|Enviando tu carta|Espera \d/i }));
 
 /* ---------- El freno de la confirmación ---------- */
 
@@ -104,12 +108,21 @@ export const passFreeze = () =>
     vi.advanceTimersByTime(CONFIRM_DELAY_MS);
   });
 
-/** Escribe el correo, espera el freno y pulsa "Enviar mi carta". */
-export const confirm = async (
+/** Escribe el correo y pasa al paso de verificar, donde vive el freno. */
+export const goToVerify = async (
   user: ReturnType<typeof setupUser>,
   address: string = VALID_LETTER.email,
 ) => {
   await typeEmail(user, address);
+  await user.click(continueButton());
+};
+
+/** El camino entero: escribir, verificar, esperar el freno y enviar. */
+export const confirm = async (
+  user: ReturnType<typeof setupUser>,
+  address: string = VALID_LETTER.email,
+) => {
+  await goToVerify(user, address);
   passFreeze();
   await user.click(confirmButton());
 };
