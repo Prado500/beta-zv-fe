@@ -18,6 +18,46 @@ El ciclo de vida de la compra y generación del producto sigue este orden estric
 
 ---
 
+## 🔌 Conexión con la API
+
+Todas las llamadas pasan por `src/utils/api.ts`, que es el único sitio donde se
+manejan cookies y CSRF:
+
+* **Sesión.** Cookie `HttpOnly` del backend. Cada llamada usa `credentials: 'include'`;
+  no hay ningún token en `localStorage` ni en el estado de React.
+* **Estado de sesión en el cliente.** `src/modules/auth/AuthProvider.tsx` es la única
+  fuente de verdad: `useAuth()` devuelve `unknown | anonymous | authenticated` y el
+  usuario de `GET /api/v1/me`. Como la cookie no se puede leer, la sonda a `/me` solo
+  se lanza al cargar si hay una pista en `localStorage` (`auth:signedInAt`), escrita al
+  entrar o registrarse y borrada al salir o ante un 401. No es una autorización: sin
+  pista no hay petición, y un visitante anónimo no cuesta una lectura.
+* **Compra con sesión.** `PurchaseModal` decide su paso inicial con ese estado: con
+  sesión salta al paso exprés y crea la compra sin pedir datos; sin sesión ofrece alta
+  o entrada ("¿Ya tienes cuenta? Inicia sesión"). Un 401 al crear la compra vuelve a
+  pedir la contraseña ahí mismo y retoma la misma compra con la misma clave de
+  idempotencia. La sesión del backend caduca a los `SESSION_MINUTES` fijos (30 por
+  defecto) y no se renueva con la actividad.
+* **CSRF.** `apiFetch` pide `GET /api/v1/auth/csrf` la primera vez, cachea el token y
+  lo manda en `X-CSRF-Token` en todo POST/PUT/PATCH/DELETE. Si el servidor lo rechaza
+  por caducado, lo renueva y reintenta una sola vez.
+* **Origen.** Por defecto las rutas son relativas (mismo origen). En desarrollo el
+  proxy de `vite.config.ts` manda `/api` a `http://127.0.0.1:8000`; esto **no es
+  comodidad**: la cookie es `SameSite=Lax` y en una llamada de 5173 a 8000 el
+  navegador no la enviaría. Se puede apuntar a otro backend con
+  `VITE_API_PROXY_TARGET` (desarrollo) o `VITE_API_BASE_URL` (build).
+
+### Creación asíncrona de la carta
+
+`POST /api/v1/letters` responde **202 Accepted**: valida la compra, encola el encargo
+y contesta sin haber escrito nada. En ese momento **no existe** enlace público ni QR,
+así que el editor muestra una pantalla de "tu carta se está procesando" y el enlace,
+el QR y el archivo adjunto llegan por correo cuando el worker termina. Las fotos se
+suben antes, una a una, a `POST /api/v1/letters/photos/eager`; la previsualización usa
+siempre `URL.createObjectURL` porque el contenedor temporal es privado y no devuelve
+URLs públicas.
+
+---
+
 ## 🛠️ Stack Tecnológico y Librerías
 
 ### Frontend (Este Repositorio)
@@ -37,8 +77,12 @@ src/
 ├── assets/
 │   └── flores/             # Recursos de flores divididos por temas (1 al 4)
 ├── modules/
+│   ├── auth/               # Sesión: AuthProvider, useAuth, login/logout, menú de usuario
+│   ├── dedications/        # Panel posventa "Mis dedicatorias"
 │   ├── editor/             # Módulo del editor de tarjetas
-│   │   ├── components/     # AnimatedBackground.tsx, PhonePreview.tsx
+│   │   ├── components/     # PhonePreview.tsx (compositor), SongPlayer, ThemeQRCode (postal)
+│   │   │   └── scenes/     # Sobre, floración, frase, recuerdos, estallido y carta (letter/)
+│   │   ├── hooks/          # useLetterEditor, usePhotoUploads, useCardChoreography…
 │   │   ├── page/           # EditorPage.tsx
 │   │   └── types.ts        # Tipados del editor
 │   └── promo/              # Módulo de la Landing Page

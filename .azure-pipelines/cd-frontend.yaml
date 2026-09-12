@@ -1,0 +1,157 @@
+# ==============================================================================
+# CD · DESPLIEGUE A AZURE STATIC WEB APPS (post-merge)
+# ------------------------------------------------------------------------------
+# Se ejecuta SOLO por push (merge) a develop, staging o main. Nunca por PR.
+#
+# El Variable Group se selecciona en la RAÍZ del YAML, en tiempo de compilación
+# de la plantilla (${{ }}), a partir de la rama que disparó el run:
+#
+#     refs/heads/develop -> VG-ZV-DEV
+#     refs/heads/staging -> VG-ZV-STG
+#     refs/heads/main    -> VG-ZV-MAIN
+#
+# Cada grupo debe contener exactamente estas dos variables:
+#     SWA_DEPLOYMENT_TOKEN  (secreta)  token de "Manage deployment token" de la SWA
+#     DEPLOYED_BACKEND                 origen del backend, SIN path: https://api.ejemplo.com
+#
+# Se compara Build.SourceBranch (ref completa) y no Build.SourceBranchName,
+# porque este último es solo el ÚLTIMO segmento: una rama "hotfix/main"
+# también daría "main" y cargaría el grupo de producción.
+# ==============================================================================
+
+trigger:
+  branches:
+    include:
+      - develop
+      - staging
+      - main
+
+pr: none   # Los PRs los valida azure-pipelines-ci.yml.
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/develop') }}:
+      - group: 'VG-ZV-DEV'
+      - name: TARGET_ENV
+        value: 'dev'
+  - ${{ elseif eq(variables['Build.SourceBranch'], 'refs/heads/staging') }}:
+      - group: 'VG-ZV-STG'
+      - name: TARGET_ENV
+        value: 'stg'
+  - ${{ elseif eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
+      - group: 'VG-ZV-MAIN'
+      - name: TARGET_ENV
+        value: 'main'
+  - ${{ else }}:
+      # Ninguna rama conocida: no se carga ningún grupo y el guardia de abajo
+      # detiene el run antes de tocar la tarea de SWA.
+      - name: TARGET_ENV
+        value: 'desconocido'
+
+stages:
+  - stage: Deploy
+    displayName: 'Build y despliegue en Azure SWA'
+    jobs:
+      - job: Build_and_Deploy
+        displayName: 'Compilar y publicar'
+        steps:
+          # --------------------------------------------------------------------
+          # Guardia fail-fast. Verifica que el Variable Group se resolvió y que el
+          # token llegó al agente. Imprime SOLO la longitud, nunca el valor.
+          #
+          # Si el grupo no está enlazado/autorizado para este pipeline, ADO NO
+          # falla: pasa el texto literal "$(SWA_DEPLOYMENT_TOKEN)" (23 chars) y la
+          # SWA responde "No matching Static Web App was found or the api key was
+          # invalid". Este paso convierte ese síntoma confuso en un error claro.
+          # --------------------------------------------------------------------
+          - bash: |
+              set -euo pipefail
+              echo "Rama: $BUILD_SOURCEBRANCH  ->  entorno: $TARGET_ENV"
+
+              if [ "$TARGET_ENV" = "desconocido" ]; then
+                echo "##vso[task.logissue type=error]La rama $BUILD_SOURCEBRANCH no tiene Variable Group asignado. Solo develop, staging y main despliegan."
+                exit 1
+              fi
+
+              # OJO: no escribir aquí un macro completo (dólar + paréntesis + nombre). ADO expande los
+              # macros DENTRO del script antes de ejecutarlo, así que un literal
+              # de comparación se convertiría en el propio token y el guardia
+              # fallaría siempre. Se detecta el macro sin expandir por su prefijo,
+              # construido en dos trozos para que ADO no lo reconozca.
+              MACRO_PREFIX='$''('
+              if [ -z "${SWA_TOKEN:-}" ]; then
+                echo "##vso[task.logissue type=error]SWA_DEPLOYMENT_TOKEN llegó VACÍA. La variable existe en el grupo del entorno '$TARGET_ENV' pero sin valor, o una variable del mismo nombre en la pestaña Variables del pipeline la está pisando con un valor vacío."
+                exit 1
+              fi
+              if [ "${SWA_TOKEN:0:2}" = "$MACRO_PREFIX" ]; then
+                echo "##vso[task.logissue type=error]SWA_DEPLOYMENT_TOKEN no se expandió (llegó el macro literal). El grupo del entorno '$TARGET_ENV' no contiene una variable con ese nombre exacto."
+                exit 1
+              fi
+
+              CLEAN="$(printf '%s' "$SWA_TOKEN" | tr -d '[:space:]')"
+              if [ "${#CLEAN}" -ne "${#SWA_TOKEN}" ]; then
+                echo "##vso[task.logissue type=error]SWA_DEPLOYMENT_TOKEN contiene espacios o saltos de línea (longitud ${#SWA_TOKEN}, sin espacios ${#CLEAN}). Vuelve a pegarlo en el Variable Group."
+                exit 1
+              fi
+
+              if [ "${#SWA_TOKEN}" -lt 60 ]; then
+                echo "##vso[task.logissue type=error]SWA_DEPLOYMENT_TOKEN mide ${#SWA_TOKEN} caracteres; un token real de SWA ronda los 100. Está truncado o es otro valor."
+                exit 1
+              fi
+
+              if [ -z "${BACKEND:-}" ] || [ "${BACKEND:0:2}" = "$MACRO_PREFIX" ]; then
+                echo "##vso[task.logissue type=error]DEPLOYED_BACKEND no se expandió o está vacía en el Variable Group del entorno '$TARGET_ENV'."
+                exit 1
+              fi
+              case "$BACKEND" in
+                https://*) ;;
+                *) echo "##vso[task.logissue type=error]DEPLOYED_BACKEND debe ser un origen https:// sin path (ej. https://api.midominio.com). Valor recibido: $BACKEND"; exit 1 ;;
+              esac
+
+              echo "Token OK (${#SWA_TOKEN} caracteres). Backend: $BACKEND"
+            displayName: 'Guardia: variables del entorno'
+            env:
+              SWA_TOKEN: $(SWA_DEPLOYMENT_TOKEN)
+              BACKEND: $(DEPLOYED_BACKEND)
+
+          - task: NodeTool@0
+            displayName: 'Node.js 24'
+            inputs:
+              versionSpec: '24.x'
+
+          - script: npm ci
+            displayName: 'npm ci'
+
+          - script: npm run test
+            displayName: 'Vitest (puerta previa al despliegue)'
+
+          # Vite inlina en el bundle toda variable VITE_* presente al compilar.
+          # Por eso el build se hace AQUÍ, con el backend del entorno, y no en
+          # Oryx (que además usaría su propia versión de Node).
+          - script: npm run build
+            displayName: 'Build de producción (tsc + vite)'
+            env:
+              VITE_API_BASE_URL: $(DEPLOYED_BACKEND)
+
+          - bash: |
+              set -euo pipefail
+              test -f dist/index.html || { echo "##vso[task.logissue type=error]dist/index.html no existe: el build no produjo salida."; exit 1; }
+              test -f dist/staticwebapp.config.json || echo "##vso[task.logissue type=warning]dist/staticwebapp.config.json no existe; las rutas del SPA devolverán 404 al recargar."
+              echo "Contenido de dist/:"; ls -la dist
+            displayName: 'Verificar artefacto dist/'
+
+          # Documentación oficial (Build configuration > "Skip building front-end
+          # app"): con skip_app_build: true, app_location ES la carpeta ya
+          # compilada que se sube, y output_location debe quedar en ''.
+          # Con app_location: '/' se habría subido el repo entero (node_modules
+          # incluido) en cuanto la autenticación pasara.
+          - task: AzureStaticWebApp@0
+            displayName: 'Publicar en Azure Static Web Apps'
+            inputs:
+              app_location: 'dist'
+              output_location: ''
+              skip_app_build: true
+              skip_api_build: true
+              azure_static_web_apps_api_token: $(SWA_DEPLOYMENT_TOKEN)

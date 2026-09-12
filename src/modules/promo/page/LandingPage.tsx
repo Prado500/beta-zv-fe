@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ScarcityBar } from '../components/layout/ScarcityBar';
 import { Header } from '../components/layout/Header';
 import { Footer } from '../components/layout/Footer';
@@ -7,9 +8,22 @@ import { Origin } from '../components/sections/Origin';
 import { LivePreview } from '../components/sections/LivePreview';
 import { SocialProof } from '../components/sections/SocialProof';
 import { Features } from '../components/sections/Features';
+import { HowItWorks } from '../components/sections/HowItWorks';
 import { Pricing } from '../components/sections/Pricing';
+import { PurchaseModal } from '../components/checkout/PurchaseModal';
+import type { CheckoutIntent } from '../hooks/useCheckoutFlow';
+import { useSmoothAnchors } from '../../../hooks/useSmoothAnchors';
 
 export default function LandingPage() {
+  /**
+   * Un solo modal, dos motivos para abrirlo: comprar (botón del precio) o solo
+   * entrar (cabecera). `null` es cerrado.
+   */
+  const [modal, setModal] = useState<CheckoutIntent | null>(null);
+
+  /* Los enlaces internos —barra, botones del hero, pie— van suaves */
+  useSmoothAnchors();
+
   return (
     <div className="relative paper-sheet paper-vignette text-on-background font-body-md antialiased selection:bg-primary-container/30 selection:text-primary">
       {/* Corazones regados sobre toda la hoja, detrás del contenido */}
@@ -18,7 +32,7 @@ export default function LandingPage() {
       {/* Ambas barras fijadas juntas en la parte superior */}
       <div className="sticky top-0 z-50">
         <ScarcityBar />
-        <Header />
+        <Header onSignIn={() => setModal('signin')} />
       </div>
 
       <main className="relative z-10">
@@ -27,10 +41,17 @@ export default function LandingPage() {
         <LivePreview />
         <SocialProof />
         <Features />
-        <Pricing />
+        <HowItWorks />
+        <Pricing onBuy={() => setModal('checkout')} />
       </main>
 
       <Footer />
+
+      <PurchaseModal
+        open={modal !== null}
+        intent={modal ?? 'checkout'}
+        onClose={() => setModal(null)}
+      />
     </div>
   );
 }
