@@ -1,0 +1,5 @@
+# FRONTEND CLEAN ARCHITECTURE & SOLID PRINCIPLES
+1. Separation of Concerns (Boy Scout Rule): Prohibido escribir llamadas a la API (fetch/axios/apiFetch) o lógica de estado compleja directamente dentro de los componentes JSX (ej. PurchaseModal.tsx, EditorPage.tsx). Si encuentras código así, DEBES refactorizarlo moviendo la lógica a Custom Hooks aislados (ej. `useCheckoutFlow`, `useLetterSubmission`), aplicando un patrón inspirado en MVVM (View = JSX, ViewModel = Custom Hook).
+2. Uso de API existente: Usa ESTRICTAMENTE las funciones `apiFetch`, `apiPost`, `apiUpload` de `src/utils/api.ts`. Estas ya manejan el token CSRF y las cookies de sesión.
+3. Fail-Fast y UX Defensiva: Los formularios deben validar en tiempo real (Zod + React Hook Form). El feedback visual debe ser instantáneo (rojo al fallar, quitándose y pasando a normal/verde al corregir), sin esperar al submit.
+4. Resiliencia de Red: Maneja gracefully los HTTP 409 (Conflictos), 503 (Unavailable) y 401 (Unauthorized). Deshabilita siempre los botones (disable={true}) mientras `isLoading` sea true para prevenir sobrepeticiones y proteger los 7 IOPS del backend.

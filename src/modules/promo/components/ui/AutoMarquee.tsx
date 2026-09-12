@@ -8,6 +8,12 @@ interface AutoMarqueeProps {
   gap?: number;
   /** Píxeles por segundo. Un poco lento se lee mejor. */
   speed?: number;
+  /**
+   * Aire arriba y abajo, en px. El carril recorta lo que se sale —lo necesita
+   * para el bucle—, así que un adorno que sobresalga de la tarjeta, como un
+   * número puesto sobre el borde, se corta si no se le reserva sitio.
+   */
+  padY?: number;
   label: string;
   className?: string;
 }
@@ -32,6 +38,7 @@ export const AutoMarquee: React.FC<AutoMarqueeProps> = ({
   itemWidth = 280,
   gap = 16,
   speed = 24,
+  padY = 4,
   label,
   className = '',
 }) => {
@@ -40,7 +47,10 @@ export const AutoMarquee: React.FC<AutoMarqueeProps> = ({
 
   return (
     <div className={`relative ${className}`}>
-      <div className="overflow-hidden -mx-margin-mobile px-margin-mobile py-1">
+      <div
+        className="overflow-hidden -mx-margin-mobile px-margin-mobile"
+        style={{ paddingBlock: padY }}
+      >
         <ul
           role="list"
           aria-label={label}

@@ -1,9 +1,7 @@
+import { photoSide, photoSlots } from '../photoPlan';
+
 /** Grados de inclinación de cada polaroid, en ciclo. */
 const ROTATIONS = [-6, 5, -4, 6, -3];
-
-/** Una foto cada tantas palabras; por debajo de este umbral no se intercala. */
-const WORDS_PER_FLOAT = 15;
-const MIN_WORDS_FOR_FLOAT = 6;
 
 export interface PhotoCard {
   /** Índice global, el que recibe el visor de fotos. */
@@ -40,25 +38,15 @@ export const planContent = (message: string, photos: string[]): ContentPlan => {
   const paragraphsWithWords = message.split('\n').map((p) => p.split(/\s+/).filter(Boolean));
   const totalWords = paragraphsWithWords.reduce((sum, words) => sum + words.length, 0);
 
-  const maxInlineCount = Math.floor(totalWords / WORDS_PER_FLOAT);
-  const inlineCount =
-    totalWords >= MIN_WORDS_FOR_FLOAT
-      ? Math.max(1, Math.min(photosList.length, maxInlineCount))
-      : 0;
-
-  const insertionIndices: number[] = [];
-  if (inlineCount > 0) {
-    const step = Math.floor(totalWords / inlineCount);
-    for (let i = 0; i < inlineCount; i++) {
-      insertionIndices.push(Math.max(0, i * step));
-    }
-  }
+  // El reparto vive en photoPlan.ts, compartido con la previa del editor
+  const insertionIndices = photoSlots(totalWords, photosList.length);
+  const inlineCount = insertionIndices.length;
 
   const makeCard = (index: number): PhotoCard => ({
     index,
     src: photosList[index],
     rotation: ROTATIONS[index % ROTATIONS.length],
-    side: index % 2 === 0 ? 'left' : 'right',
+    side: photoSide(index),
   });
 
   let globalWordIdx = 0;

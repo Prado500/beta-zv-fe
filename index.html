@@ -11,6 +11,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
   </head>
   <body>
+    <!--
+      Meta Pixel sin JavaScript. Es la única parte del Pixel que vive en el HTML,
+      porque es la única que no puede vivir en React: si el navegador no ejecuta
+      scripts, la app no se monta. El resto (init, PageView y navegación interna)
+      está en src/components/analytics/MetaPixel.tsx, y el identificador se
+      configura en src/config/analytics.ts (VITE_META_PIXEL_ID).
+    -->
+    <noscript>
+      <img height="1" width="1" style="display:none" alt=""
+        src="https://www.facebook.com/tr?id=4659139844407745&amp;ev=PageView&amp;noscript=1" />
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

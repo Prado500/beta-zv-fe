@@ -2,41 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { THEME_PRESETS } from '../../../editor/types';
 import { resolvePalette, withAlpha } from '../../../../utils/themePalette';
 import { useMediaQuery } from '../../../../utils/useMediaQuery';
+import { FLOWERS_BY_THEME, THEMES_WITH_FLOWERS } from '../../../../utils/themeFlowers';
 
-/**
- * Versiones WebP a 360px de las flores del editor. Los PNG originales son de
- * 500px y ~150 KB cada uno: aquí se muestran a ~126px, y descargar 150 KB en
- * el momento de reproducir es lo que hacía que la animación arrancara trabada.
- * El juego completo pasó de 3,6 MB a 393 KB.
- */
-const FLOWER_URLS = import.meta.glob('../../../../assets/flores-web/*/flor_*.webp', {
-  eager: true,
-  query: '?url',
-  import: 'default',
-}) as Record<string, string>;
-
-/** El número de carpeta corresponde al tema, igual que en el exportador. */
-const THEME_BY_FOLDER: [string, string][] = [
-  ['1', 'classic'],
-  ['2', 'pastelPink'],
-  ['3', 'sunset'],
-  ['4', 'starry'],
-  ['5', 'lavender'],
-  ['6', 'emerald'],
-  ['7', 'midnight'],
-  ['8', 'vintage'],
-];
-
-const FLOWERS_BY_THEME: Record<string, string[]> = Object.fromEntries(
-  THEME_BY_FOLDER.map(([folder, themeId]) => [
-    themeId,
-    [1, 2, 3]
-      .map((n) => FLOWER_URLS[`../../../../assets/flores-web/tema ${folder}/flor_${n}.webp`])
-      .filter(Boolean),
-  ]),
-);
-
-const THEMES = THEME_BY_FOLDER.map(([, id]) => id).filter((id) => FLOWERS_BY_THEME[id]?.length);
+/* Los juegos de flores viven en themeFlowers.ts: los comparte con la
+   postal del QR, así no hay dos globs que puedan separarse. */
+const THEMES = THEMES_WITH_FLOWERS;
 
 /** Debe coincidir con la duración de `.bloom-particle` en index.css. */
 const BLOOM_MS = 2800;

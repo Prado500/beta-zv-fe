@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { AnimatedBackground } from '../../../editor/components/AnimatedBackground';
 import { Ornament, CornerFlourish, HeartConfetti, PhotoFrame, Rose } from '../../../../components/decor';
+import { YouTubeFacade } from '../../../../components/media/YouTubeFacade';
+import { DEMO_SONG, LANDING_VIDEOS } from '../../../../config/videos';
 import { EmotionGrid } from './EmotionGrid';
 
 export const LivePreview: React.FC = () => {
@@ -15,7 +17,7 @@ export const LivePreview: React.FC = () => {
   const [mobileTab, setMobileTab] = useState<'edit' | 'preview'>('edit');
 
   return (
-    <section className="py-14 md:py-section-gap relative overflow-hidden" id="preview">
+    <section className="py-14 md:py-section-gap relative overflow-hidden scroll-mt-32" id="preview">
       <div 
         className="absolute inset-0 opacity-[0.03] pointer-events-none" 
         style={{ backgroundImage: 'radial-gradient(#b90538 1px, transparent 1px)', backgroundSize: '24px 24px' }} 
@@ -27,13 +29,19 @@ export const LivePreview: React.FC = () => {
         
         <div className="text-center mb-10 md:mb-16">
           <h2 className="text-3xl md:text-5xl font-black text-on-background mb-3 tracking-tight">
-            Tú tienes el{' '}
-            <span className="font-script font-normal text-wine text-[1.35em] leading-none">control total</span>
+            Todo lo que ella{' '}
+            <span className="font-script font-normal text-wine text-[1.35em] leading-none">va a vivir</span>
           </h2>
-          <Ornament tone="gold" className="mx-auto mb-8" />
+          <Ornament tone="gold" className="mx-auto mb-5" />
+          <p className="max-w-2xl mx-auto text-base md:text-lg text-on-surface-variant font-medium leading-relaxed mb-8">
+            Todo lo que necesitan para desconectarse del mundo, en una sola pantalla: una tarjeta
+            física que se siente tan cuidada como lo que sienten el uno por el otro, y los recuerdos
+            que ya tienen, contando la historia que solo ustedes conocen. No vas a tener que pensar
+            en nada más. Ya está resuelto.
+          </p>
           <PhotoFrame tilt={1.5} tape="left" className="max-w-2xl mx-auto mb-10">
             <div className="aspect-video">
-              <iframe src="https://www.youtube.com/embed/TU_VIDEO_ID_3" className="w-full h-full border-0" title="Demostración"></iframe>
+              <YouTubeFacade videoId={LANDING_VIDEOS.demo} title="Demostración" />
             </div>
           </PhotoFrame>
         </div>
@@ -98,14 +106,16 @@ export const LivePreview: React.FC = () => {
             </div>
 
             <div>
-              <label className="block font-bold text-sm text-on-surface mb-2">Canción de Fondo (YouTube)</label>
+              <label htmlFor="demo-song" className="block font-bold text-sm text-on-surface mb-2">Canción de Fondo (YouTube)</label>
               <div className="relative">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">music_note</span>
-                <input 
-                  type="text" 
-                  readOnly 
-                  placeholder="Ej. Perfect - Ed Sheeran" 
-                  className="w-full pl-10 p-3.5 rounded-xl border border-outline-variant bg-surface-container-low text-on-surface-variant outline-none cursor-not-allowed font-body-md" 
+                {/* La demo trae una canción puesta; en el teléfono se puede escuchar. */}
+                <input
+                  id="demo-song"
+                  type="text"
+                  readOnly
+                  value={`${DEMO_SONG.title} - ${DEMO_SONG.artist}`}
+                  className="w-full pl-10 p-3.5 rounded-xl border border-outline-variant bg-surface-container-low text-on-surface-variant outline-none cursor-not-allowed font-body-md"
                 />
               </div>
             </div>
@@ -179,14 +189,16 @@ export const LivePreview: React.FC = () => {
               <CornerFlourish corner="tr" tone="gold" size={40} placement="top-2.5 right-2.5" className="opacity-45" />
             </div>
 
-            <div className="relative bg-linear-to-b from-gray-700 via-gray-900 to-black p-1.5 rounded-[2.5rem] shadow-2xl ring-1 ring-white/20 w-full max-w-[212px] sm:max-w-[290px] md:max-w-[320px]">
+            {/* 260px de mínimo, no 212: el reproductor de la canción tiene que
+                medir al menos 200x200 dentro de la pantalla, como exige YouTube. */}
+            <div className="relative bg-linear-to-b from-gray-700 via-gray-900 to-black p-1.5 rounded-[2.5rem] shadow-2xl ring-1 ring-white/20 w-full max-w-[260px] sm:max-w-[290px] md:max-w-[320px]">
               
               <div className="absolute top-1.5 inset-x-0 h-6 flex justify-center z-20 pointer-events-none">
                 <div className="w-24 h-6 bg-black rounded-b-2xl"></div>
               </div>
               
               {/* Pantalla con cambio de color y animación suave */}
-              <div className={`w-full h-full aspect-9/19 rounded-[2.2rem] overflow-hidden relative flex flex-col pt-16 pb-6 px-6 transition-colors duration-500 ${theme === 'tema1' ? 'bg-[#faf7f5]' : 'bg-[#0f111a]'}`}>
+              <div className={`w-full h-full aspect-9/19 rounded-[2.2rem] overflow-hidden relative flex flex-col pt-14 pb-5 px-4 transition-colors duration-500 ${theme === 'tema1' ? 'bg-[#faf7f5]' : 'bg-[#0f111a]'}`}>
                 
                 <div className="absolute inset-0 z-0">
                   <AnimatedBackground type={theme === 'tema1' ? 'hearts' : 'stars'} />
@@ -199,6 +211,29 @@ export const LivePreview: React.FC = () => {
                   <p className={`text-base leading-relaxed italic transition-all duration-300 ${theme === 'tema1' ? 'text-[#5c4e43]' : 'text-gray-300'}`}>
                     {liveMessage || 'Escribe tu mensaje en el editor de la izquierda para ver cómo cobra vida...'}
                   </p>
+
+                  {/* La canción que viene puesta: la misma fachada de los videos,
+                      cuadrada y de al menos 200 px, y solo carga al tocarla. */}
+                  <div
+                    className={`mx-auto mt-5 w-full max-w-[232px] rounded-2xl p-1.5 text-left ring-1 ${
+                      theme === 'tema1' ? 'bg-white/80 ring-rose-200/70' : 'bg-white/10 ring-white/15'
+                    }`}
+                  >
+                    <div className="aspect-square min-h-[200px] overflow-hidden rounded-xl bg-black">
+                      <YouTubeFacade
+                        videoId={DEMO_SONG.videoId}
+                        title={`${DEMO_SONG.title} · ${DEMO_SONG.artist}`}
+                        playSize="md"
+                      >
+                        <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/80 to-transparent p-3 pt-8">
+                          <span className="block truncate text-sm font-bold text-white">♪ {DEMO_SONG.title}</span>
+                          <span className="block truncate text-[11px] text-white/80">
+                            {DEMO_SONG.artist} · Toca para escuchar
+                          </span>
+                        </span>
+                      </YouTubeFacade>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
