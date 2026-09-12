@@ -52,6 +52,7 @@ body {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
+  min-height: 100dvh;
   overflow: hidden;
 }
 
@@ -61,6 +62,7 @@ body {
   position: relative;
   width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -125,7 +127,19 @@ body {
   position: relative;
   width: 100%;
   max-width: 360px;
+  /*
+   * dvh DESPUÉS de vh, nunca en su lugar: quien no lo entienda se queda
+   * con la primera y quien sí, la pisa.
+   *
+   * En el móvil 100vh es la pantalla CON la barra del navegador retraída,
+   * no la que se ve. Con la barra delante, el fondo del teléfono caía por
+   * debajo del borde y, como el cuerpo no desplaza, no había manera de
+   * llegar al final de la carta: se quedaba clavada donde acabara el texto.
+   * dvh sigue a la pantalla de verdad, también cuando la barra aparece y
+   * desaparece al desplazarse.
+   */
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -142,10 +156,14 @@ body {
 }
 .phone__bg { position: absolute; inset: 0; background: var(--bg); z-index: 0; pointer-events: none; }
 
+/* El gatillo del modo sin guión: invisible y sin estorbar mientras haya guión. */
+.css-trigger { display: none; }
+
 @media (min-width: 640px) {
   .phone {
     height: 820px;
     max-height: 92vh;
+    max-height: 92dvh;
     border-radius: 28px;
     border: 1px solid var(--border);
     box-shadow:
@@ -640,6 +658,7 @@ button.player__button { padding: 0; font: inherit; cursor: pointer; -webkit-appe
   box-shadow: 0 30px 60px -20px rgba(0,0,0,0.8);
   max-width: 85%;
   max-height: 75vh;
+  max-height: 75dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -648,6 +667,7 @@ button.player__button { padding: 0; font: inherit; cursor: pointer; -webkit-appe
 .lightbox__img {
   max-width: 100%;
   max-height: 55vh;
+  max-height: 55dvh;
   object-fit: contain;
   border-radius: 2px;
   background: rgba(0,0,0,0.05);
