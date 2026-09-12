@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { MetaPixel } from './components/analytics/MetaPixel';
 import { AuthProvider } from './modules/auth/AuthProvider';
 import LandingPage from './modules/promo/page/LandingPage';
 import EditorPage from './modules/editor/page/EditorPage';
@@ -9,6 +10,12 @@ import MyDedicationsPage from './modules/dedications/page/MyDedicationsPage';
 export default function App() {
   return (
     <Router>
+      {/*
+        Meta Pixel. Va aquí dentro, y no en `index.html`, porque en una SPA el
+        documento se carga una sola vez: es el router quien sabe que el usuario
+        cambió de pantalla. No pinta nada.
+      */}
+      <MetaPixel />
       {/*
         La sesión se conoce en un solo sitio. La cookie es `HttpOnly`, así que
         el proveedor pregunta a `/me` —solo si hay pista de un inicio previo— y
