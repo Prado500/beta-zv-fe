@@ -94,8 +94,25 @@ export const heartConfetti = (count: number): string => {
   }).join('');
 };
 
+/** Los glifos que se pintan macizos; el resto van a puro trazo. */
+const FILLED_ICONS = new Set(['heart', 'play', 'pause']);
+
+export type IconName =
+  | 'heart'
+  | 'lock'
+  | 'note'
+  | 'headphones'
+  | 'close'
+  | 'left'
+  | 'right'
+  | 'play'
+  | 'pause'
+  | 'equalizer'
+  | 'noteOff'
+  | 'openOut';
+
 /** Icono de trazo, para los pocos glifos de interfaz de la carta. */
-export const icon = (name: 'heart' | 'lock' | 'note' | 'headphones' | 'close' | 'left' | 'right', size = 16): string => {
+export const icon = (name: IconName, size = 16): string => {
   const paths: Record<string, string> = {
     heart: `<path d="${HEART_PATH}" fill="currentColor"/>`,
     lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
@@ -104,8 +121,14 @@ export const icon = (name: 'heart' | 'lock' | 'note' | 'headphones' | 'close' | 
     close: '<path d="M6 6l12 12M18 6L6 18"/>',
     left: '<path d="M15 5l-7 7 7 7"/>',
     right: '<path d="M9 5l7 7-7 7"/>',
+    play: '<path d="M8 5.2v13.6L19 12z" fill="currentColor"/>',
+    pause: '<rect x="7" y="5" width="3.6" height="14" rx="1.2" fill="currentColor"/><rect x="13.4" y="5" width="3.6" height="14" rx="1.2" fill="currentColor"/>',
+    equalizer: '<path d="M6 14v6M12 4v16M18 10v10"/>',
+    /* Nota tachada: la canción existe, pero su dueño no deja que suene aquí */
+    noteOff: '<circle cx="7" cy="18" r="3"/><path d="M10 18V5l10-2v6"/><path d="M4 4l16 16"/>',
+    openOut: '<path d="M14 4h6v6"/><path d="M20 4l-8.5 8.5"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
   };
-  const filled = name === 'heart';
+  const filled = FILLED_ICONS.has(name);
   return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="${
     filled ? 'none' : 'currentColor'
   }" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]}</svg>`;

@@ -63,7 +63,7 @@ export const SongChip: React.FC<SongChipProps> = ({
         onClick={needsReveal ? onReveal : onToggle}
         tabIndex={visible ? 0 : -1}
         aria-label={label}
-        className="flex cursor-pointer items-center gap-2 rounded-full py-1.5 pl-1.5 pr-3.5 shadow-[0_12px_28px_-14px_rgba(0,0,0,0.6)] backdrop-blur-md transition-transform active:scale-95"
+        className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-full py-2 pl-2 pr-4 shadow-[0_12px_28px_-14px_rgba(0,0,0,0.6)] backdrop-blur-md transition-transform active:scale-95"
         style={{
           backgroundColor: withAlpha(palette.cardBg, 0.95),
           border: `1px solid ${withAlpha(decor.metal, 0.5)}`,
@@ -71,22 +71,27 @@ export const SongChip: React.FC<SongChipProps> = ({
         }}
       >
         <span
-          className="flex h-7 w-7 items-center justify-center rounded-full"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
           style={{ backgroundColor: palette.accent, color: palette.cardBg }}
         >
-          <span className="material-symbols-outlined text-sm">
+          <span className="material-symbols-outlined text-[18px]">
             {needsReveal ? 'music_note' : isPlaying ? 'pause' : 'play_arrow'}
           </span>
         </span>
-        <span className="text-left leading-tight">
-          <span className="block text-[9px] font-semibold uppercase tracking-[0.14em]">
-            Nuestra canción
-          </span>
-          <span className="block text-[9px] opacity-70">{CHIP_TEXT[status] ?? ''}</span>
+        {/*
+          Sin versalitas, sin espaciado y sin partir de línea.
+          "NUESTRA CANCIÓN" a 9 px con 0.14em de espaciado no cabía de una vez
+          en el ancho del teléfono: se partía en dos, y con el estado debajo el
+          mando quedaba en tres líneas apretadas dentro de una píldora pensada
+          para una. En caja normal entra de un tirón y se lee.
+        */}
+        <span className="whitespace-nowrap text-left leading-snug">
+          <span className="block text-[12px] font-semibold">Nuestra canción</span>
+          <span className="block text-[11px] opacity-70">{CHIP_TEXT[status] ?? ''}</span>
         </span>
         <span
           aria-hidden="true"
-          className={`material-symbols-outlined text-sm ${isPlaying ? 'animate-pulse' : 'opacity-45'}`}
+          className={`material-symbols-outlined text-base ${isPlaying ? 'animate-pulse' : 'opacity-45'}`}
           style={{ color: palette.accent }}
         >
           equalizer

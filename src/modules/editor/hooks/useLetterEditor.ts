@@ -24,12 +24,26 @@ import {
  * se van a una dirección que el usuario escribió una sola vez.
  */
 
-/** Campos de cada paso, para revelar sus errores al avanzar. */
+/**
+ * Campos de cada paso, para revelar sus errores al avanzar.
+ *
+ * `recipientEmail` no está en ninguno: no vive en el asistente. Se pide en la
+ * última pantalla, junto al aviso de que la carta ya no se podrá editar, y lo
+ * valida el esquema completo en `confirmSubmit`. Escribirlo en el paso 1 y
+ * confirmarlo cinco minutos después es releer algo que uno ya dio por bueno.
+ */
 const STEP_FIELDS: Record<number, (keyof LetterInput)[]> = {
-  1: ['title', 'recipient', 'recipientEmail', 'sender', 'message'],
+  1: ['title', 'recipient', 'sender', 'message'],
   2: ['songUrl', 'photos'],
   3: ['themeId'],
 };
+
+/** Todo lo que la carta necesita antes de preguntar dónde se manda. */
+const LETTER_FIELDS: (keyof LetterInput)[] = [
+  ...STEP_FIELDS[1],
+  ...STEP_FIELDS[2],
+  ...STEP_FIELDS[3],
+];
 
 const SUBMIT_OVERRIDES = {
   LETTER_ALREADY_EXISTS: 'Esta compra ya tiene su carta. Revisa tu correo: te la enviamos ahí.',
@@ -75,11 +89,23 @@ export const useLetterEditor = (purchaseId: string | null): LetterEditor => {
    */
   const inFlight = useRef(false);
 
-  /** Valida todo y, en vez de enviar, levanta la confirmación del correo. */
-  const requestSubmit = form.handleSubmit((values) => {
-    setError(null);
-    setConfirmingEmail(values.recipientEmail);
-  });
+  /**
+   * Valida la carta —todo menos el destinatario— y, en vez de enviar, levanta
+   * la pantalla del correo.
+   *
+   * No usa `form.handleSubmit`: ese valida el esquema entero, y el correo está
+   * vacío a propósito, así que nunca dejaría pasar. Se validan a mano los
+   * campos que sí existen en el asistente.
+   */
+  const requestSubmit = useCallback(
+    async (event?: React.BaseSyntheticEvent) => {
+      event?.preventDefault();
+      setError(null);
+      if (!(await form.trigger(LETTER_FIELDS))) return;
+      setConfirmingEmail(form.getValues('recipientEmail') ?? '');
+    },
+    [form],
+  );
 
   const cancelConfirm = useCallback(() => {
     setConfirmingEmail(null);

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
-import { emailField, fillStepOne, renderEditor } from './editorHarness';
+import { fillStepOne, renderEditor } from './editorHarness';
 import { setupUser } from './testUtils';
 
 /**
@@ -47,7 +47,7 @@ describe('EditorPage · validaciones en vivo', () => {
     await user.type(recipient, 'Ana María');
 
     await waitFor(() => expect(recipient.getAttribute('aria-invalid')).toBe('false'));
-    expect(recipient.className).toContain('border-emerald-500/70');
+    expect(recipient.className).toMatch(/border-emerald/);
     expect(screen.queryByText(/Solo letras, espacios y guiones/i)).toBeNull();
   });
 
@@ -62,15 +62,13 @@ describe('EditorPage · validaciones en vivo', () => {
     expect(sender.className).toContain('border-error');
   });
 
-  it('un correo a medias avisa antes de enviar nada', async () => {
-    const user = setupUser();
+  /*
+   * El correo ya no está en el asistente: se pide en la última pantalla, la
+   * del freno, y su aviso se comprueba allí (`editor-double-check`).
+   */
+  it('el asistente ya no pregunta el correo: eso pasa al final', () => {
     renderEditor();
-
-    const email = emailField();
-    await user.type(email, 'sebas@ejemplo');
-
-    await waitFor(() => expect(email.getAttribute('aria-invalid')).toBe('true'));
-    expect(screen.getByText(/Escribe un correo válido/i)).toBeTruthy();
+    expect(screen.queryByLabelText(/Tu correo/i)).toBeNull();
   });
 
   it('un título de una letra avisa y deja de avisar al completarlo', async () => {
@@ -83,7 +81,7 @@ describe('EditorPage · validaciones en vivo', () => {
 
     await user.type(title, 'liz Aniversario');
     await waitFor(() => expect(screen.queryByText(/al menos 3 caracteres/i)).toBeNull());
-    expect(title.className).toContain('border-emerald-500/70');
+    expect(title.className).toMatch(/border-emerald/);
   });
 
   it('el enlace de la canción solo se acepta si es de YouTube', async () => {
@@ -108,6 +106,6 @@ describe('EditorPage · validaciones en vivo', () => {
     await fillStepOne(user);
 
     await waitFor(() => expect(container.querySelectorAll('[aria-invalid="true"]').length).toBe(0));
-    expect(container.querySelectorAll('.border-emerald-500\\/70').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('[class*="border-emerald"]').length).toBeGreaterThan(0);
   });
 });

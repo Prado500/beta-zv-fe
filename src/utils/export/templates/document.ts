@@ -5,12 +5,12 @@ import type { Gift } from '../../themeGifts';
 import { buildAmbient } from './ambient';
 import { buildRuntime } from './runtime';
 import { buildStyles } from './styles';
+import { buildBloom, buildBurst, buildMemories, buildPhrase } from './scenes';
 import {
-  buildBlooms,
   buildCard,
   buildEnvelope,
   buildLightbox,
-  buildPlayer,
+  buildMusic,
   buildStageDecor,
   type CardCopy,
 } from './screens';
@@ -24,6 +24,8 @@ export interface DocumentInput {
   animationType: string;
   plan: ContentPlan;
   flowers: string[];
+  /** La primera frase del mensaje, para el momento suspendido. */
+  phrase: string;
 }
 
 /**
@@ -38,6 +40,7 @@ export const buildDocument = ({
   animationType,
   plan,
   flowers,
+  phrase,
 }: DocumentInput): string => `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -55,15 +58,27 @@ export const buildDocument = ({
 ${buildStageDecor(palette, copy)}
 
   <div class="phone">
-    <div class="phone__screen">
+    <div class="phone__screen" id="screen">
       <div class="phone__bg"></div>
       ${buildAmbient(animationType)}
 
 ${buildEnvelope(copy, palette, decor, gifts)}
 
-${buildBlooms(flowers)}
+<!--
+  Los momentos, en orden: la floración de tallos sale del sobre; luego la frase
+  suspendida; luego los recuerdos, que se descubren tocándolos; y al terminar,
+  el estallido de flores que tapa la pantalla y da paso a la carta.
 
-${buildCard(plan, copy, palette, decor, gifts, buildPlayer(copy)).replace(
+  La floración y el estallido se imprimen aquí y esperan quietos. La frase y
+  los recuerdos van en <template>: el guion los clona cuando les toca, para que
+  sus animaciones arranquen en ese momento y no al abrir el archivo.
+-->
+${buildBloom(flowers, palette, decor)}
+${buildPhrase(phrase, palette)}
+${buildMemories(plan.photos, palette, decor)}
+${buildBurst(flowers)}
+
+${buildCard(plan, copy, palette, decor, gifts, buildMusic(copy)).replace(
   '<div class="card__inner">',
   `${buildAmbient(animationType).replace('class="ambient"', 'class="ambient ambient--front"')}<div class="card__inner">`,
 )}
@@ -74,6 +89,6 @@ ${buildLightbox(plan.photos.length)}
   </div>
 </div>
 
-<script>${buildRuntime(plan.photos)}</script>
+<script>${buildRuntime(plan.photos, Boolean(phrase))}</script>
 </body>
 </html>`;

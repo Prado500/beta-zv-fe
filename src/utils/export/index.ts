@@ -7,6 +7,7 @@ import { decorFor } from '../themeDecor';
 import { giftsFor } from '../themeGifts';
 import { buildDocument } from './templates/document';
 import { getYouTubeId } from '../youtube';
+import { firstPhrase } from '../firstPhrase';
 
 const FALLBACK = {
   title: 'Una Carta Especial',
@@ -55,6 +56,7 @@ export const downloadCardHtml = async (data: DedicationForm): Promise<void> => {
       monogram: monogramOf(data.recipient || FALLBACK.recipient),
       sender: escapeHtml(data.sender || FALLBACK.sender),
       songUrl: escapeHtml(data.songUrl || (videoId ? `https://www.youtube.com/watch?v=${videoId}` : '#')),
+      videoId: escapeHtml(videoId || ''),
       hasSong: Boolean(videoId),
     },
     palette,
@@ -63,6 +65,8 @@ export const downloadCardHtml = async (data: DedicationForm): Promise<void> => {
     animationType: theme.animationType,
     plan,
     flowers,
+    /* La misma frase que suspende la previa, con las mismas reglas */
+    phrase: escapeHtml(firstPhrase(data.message || '')),
   });
 
   const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));

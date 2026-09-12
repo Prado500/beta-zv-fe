@@ -30,7 +30,11 @@ export const VALID_LETTER = {
 export const renderEditor = () =>
   renderAt(<EditorPage />, { path: '/editor', state: { purchaseId: PURCHASE_ID } });
 
-export const emailField = () => screen.getByLabelText(/Tu correo \(o el correo/i);
+/**
+ * El correo ya no vive en el asistente: se pide en la última pantalla, la del
+ * freno. Por eso este campo solo existe con ese modal abierto.
+ */
+export const emailField = () => screen.getByLabelText(/Tu correo \(o donde quieras/i);
 
 export const fillStepOne = async (
   user: ReturnType<typeof setupUser>,
@@ -39,9 +43,17 @@ export const fillStepOne = async (
   const data = { ...VALID_LETTER, ...overrides };
   await user.type(screen.getByLabelText('Título de la carta'), data.title);
   await user.type(screen.getByLabelText('Para quién es'), data.recipient);
-  await user.type(emailField(), data.email);
   await user.type(screen.getByLabelText('De parte de'), data.sender);
   await user.type(screen.getByLabelText('Tu Mensaje'), data.message);
+};
+
+/** Escribe el correo dentro del modal, que es donde se pide ahora. */
+export const typeEmail = async (
+  user: ReturnType<typeof setupUser>,
+  address: string = VALID_LETTER.email,
+) => {
+  await user.clear(emailField());
+  await user.type(emailField(), address);
 };
 
 /** El botón de enviar solo existe en el paso 3, como para el usuario. */
@@ -62,6 +74,10 @@ export const submitButton = () =>
   );
 
 /** El botón de confirmar, en cualquiera de sus tres caras: freno, listo o enviando. */
+/** El botón de "Continuar": cierra el paso de escribir y abre el de verificar. */
+export const continueButton = () => asButton(screen.getByRole('button', { name: /^Continuar/i }));
+
+/** El botón de enviar, en sus tres caras: freno, listo o enviando. */
 export const confirmButton = () =>
   asButton(screen.getByRole('button', { name: /Sí, es correcto|Enviando tu carta|Espera \d/i }));
 
@@ -92,8 +108,21 @@ export const passFreeze = () =>
     vi.advanceTimersByTime(CONFIRM_DELAY_MS);
   });
 
-/** Espera el freno y pulsa "Sí, es correcto". */
-export const confirm = async (user: ReturnType<typeof setupUser>) => {
+/** Escribe el correo y pasa al paso de verificar, donde vive el freno. */
+export const goToVerify = async (
+  user: ReturnType<typeof setupUser>,
+  address: string = VALID_LETTER.email,
+) => {
+  await typeEmail(user, address);
+  await user.click(continueButton());
+};
+
+/** El camino entero: escribir, verificar, esperar el freno y enviar. */
+export const confirm = async (
+  user: ReturnType<typeof setupUser>,
+  address: string = VALID_LETTER.email,
+) => {
+  await goToVerify(user, address);
   passFreeze();
   await user.click(confirmButton());
 };

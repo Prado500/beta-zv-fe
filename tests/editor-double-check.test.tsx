@@ -7,6 +7,9 @@ import {
   VALID_LETTER,
   confirm,
   confirmButton,
+  continueButton,
+  emailField,
+  goToVerify,
   fillStepOne,
   goToStepThree,
   installFreezeClock,
@@ -80,21 +83,33 @@ describe('EditorPage · confirmación del correo', () => {
 
     const dialog = await openConfirm(user);
 
-    // El texto es el contrato con el usuario: dice qué llega, a dónde y qué ya no se podrá cambiar.
-    expect(dialog.textContent).toContain('Verifica que este correo sea correcto');
+    // Primer paso: dice qué llega y a dónde. El correo se pide AQUÍ, así que nace vacío.
+    expect(dialog.textContent).toContain('Es lo que vas a entregar');
+    expect(dialog.textContent).toContain('archivo descargable');
+    expect(dialog.textContent).toContain('código QR');
+    expect((emailField() as HTMLInputElement).value).toBe('');
+    // Sin freno todavía: aquí no hay nada que releer
+    expect(continueButton().disabled).toBe(false);
+
+    // Segundo paso: el correo delante y el aviso de que no hay vuelta atrás
+    await goToVerify(user);
     expect(dialog.textContent).toContain(VALID_LETTER.email);
-    expect(dialog.textContent).toContain('Asegúrate de que tu carta esté exactamente como deseas');
-    expect(dialog.textContent).toContain('podrás editarla');
-    expect(dialog.textContent).toContain('llegará el código QR, el enlace y el archivo descargable');
-    expect(dialog.textContent).toContain('Revisa que no haya errores de tipeo');
+    expect(dialog.textContent).toContain('podrás cambiar la carta ni la dirección');
 
     // Lo importante: la petición sigue sin salir.
     expect(createLetter).not.toHaveBeenCalled();
   });
 
-  it('el botón de confirmar nace bloqueado y cuenta 3, 2, 1 antes de liberarse', async () => {
+  it('el freno solo corre al verificar, no mientras se escribe el correo', async () => {
     const user = setupEditorUser();
     await openConfirm(user);
+
+    /*
+     * Tres segundos escribiendo: si la cuenta arrancara al abrir el modal ya
+     * habría expirado, y el freno no frenaría nada. Ese era el fallo.
+     */
+    tick(3000);
+    await goToVerify(user);
 
     expect(confirmButton().disabled).toBe(true);
     expect(confirmButton().textContent).toContain('Espera 3');
@@ -108,18 +123,23 @@ describe('EditorPage · confirmación del correo', () => {
     expect(confirmButton().textContent).toContain('Sí, es correcto');
   });
 
-  it('ni el clic ni el Enter mandan la carta antes de que pase el freno', async () => {
+  it('el freno bloquea el envío, y el foco no cae sobre el botón', async () => {
     const user = setupEditorUser();
     vi.mocked(createLetter).mockResolvedValue(QUEUED);
     await openConfirm(user);
 
+    await goToVerify(user);
+
+    // Antes de tiempo el botón no responde
     await user.click(confirmButton());
-    await user.click(screen.getByLabelText(/Corrígelo aquí si hace falta/i));
-    await user.keyboard('{Enter}');
     expect(createLetter).not.toHaveBeenCalled();
 
+    // Y el foco NO está en él, a propósito: quien venga con Intro apretado
+    // no manda la carta sin querer.
+    expect(document.activeElement).not.toBe(confirmButton());
+
     passFreeze();
-    await user.keyboard('{Enter}');
+    await user.click(confirmButton());
     await waitFor(() => expect(createLetter).toHaveBeenCalledTimes(1));
   });
 
@@ -146,10 +166,16 @@ describe('EditorPage · confirmación del correo', () => {
     const user = setupEditorUser();
     vi.mocked(createLetter).mockResolvedValue(QUEUED);
     await openConfirm(user);
+    await goToVerify(user);
     passFreeze();
     expect(confirmButton().disabled).toBe(false);
 
-    await user.click(screen.getByRole('button', { name: /No, quiero revisarlo/i }));
+    await user.click(screen.getByRole('button', { name: /No, corregir el correo/i }));
+    // Vuelve al paso de escribir, sin enviar nada
+    expect(emailField()).toBeTruthy();
+    expect(createLetter).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: /No, quiero revisar la carta/i }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(createLetter).not.toHaveBeenCalled();
@@ -159,19 +185,17 @@ describe('EditorPage · confirmación del correo', () => {
     await user.click(screen.getByRole('button', { name: /Rosado Pastel/i }));
     await user.click(submitButton());
     await screen.findByRole('dialog');
+    await goToVerify(user);
     expect(confirmButton().disabled).toBe(true);
     expect(confirmButton().textContent).toContain('Espera 3');
   });
 
-  it('corregir el correo dentro del modal manda el corregido, no el original', async () => {
+  it('el correo que se escribe en el modal es el que viaja al backend', async () => {
     const user = setupEditorUser();
     vi.mocked(createLetter).mockResolvedValue(QUEUED);
     await openConfirm(user);
 
-    const field = screen.getByLabelText(/Corrígelo aquí si hace falta/i);
-    await user.clear(field);
-    await user.type(field, 'correcto@ejemplo.com');
-    await confirm(user);
+    await confirm(user, 'correcto@ejemplo.com');
 
     await waitFor(() =>
       expect(createLetter).toHaveBeenCalledWith(

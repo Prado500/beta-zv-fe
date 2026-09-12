@@ -110,3 +110,87 @@ describe('downloadCardHtml', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * El archivo descargado cuenta la misma historia que la previa:
+ * sobre -> floración -> frase -> recuerdos -> estallido -> carta.
+ */
+describe('los momentos de la carta descargada', () => {
+  it('la floración de tallos viaja lista para arrancar, con su pasto', async () => {
+    await downloadCardHtml(LETTER);
+    const html = await readBlob(saved.blob as Blob);
+
+    expect(html).toContain('id="bloom-scene"');
+    // 18 tallos entre las tres filas, y el pasto de la escena
+    expect(html.match(/class="bloom-stem"/g)).toHaveLength(18);
+    expect(html.match(/class="bloom-blade"/g)?.length).toBeGreaterThan(20);
+    // Quieta hasta que el guion la encienda
+    expect(html).toContain('.bloom-scene.is-running');
+  });
+
+  it('la frase suspendida es la primera del mensaje, palabra por palabra', async () => {
+    await downloadCardHtml(LETTER);
+    const html = await readBlob(saved.blob as Blob);
+
+    expect(html).toContain('id="tpl-phrase"');
+    expect(html).toContain('class="phrase-scene__word"');
+    // La frase corta en el primer punto: lo que sigue no entra
+    expect(html).toContain('>lado,</span>');
+    expect(html).not.toContain('>mejor</span>');
+  });
+
+  it('los recuerdos llevan una foto por tarjeta y su sitio en el abanico', async () => {
+    await downloadCardHtml(LETTER);
+    const html = await readBlob(saved.blob as Blob);
+
+    expect(html).toContain('id="tpl-memories"');
+    expect(html.match(/data-mem="\d"/g)).toHaveLength(LETTER.photos.length);
+    expect(html).toContain('data-fan=');
+    expect(html).toContain('id="tpl-mem-burst"');
+  });
+
+  it('sin fotos no hay recuerdos que descubrir', async () => {
+    await downloadCardHtml({ ...LETTER, photos: [] });
+    const html = await readBlob(saved.blob as Blob);
+
+    expect(html).not.toContain('id="tpl-memories"');
+    // La floración sí: esa no depende de que haya fotos
+    expect(html).toContain('id="bloom-scene"');
+  });
+
+  it('el estallido de flores es el último momento, no el primero', async () => {
+    await downloadCardHtml(LETTER);
+    const html = await readBlob(saved.blob as Blob);
+
+    expect(html).toContain('[data-state="burst"] .bloom');
+    expect(html).not.toContain('[data-state="blooming"] .bloom');
+  });
+});
+
+describe('la música de la carta descargada', () => {
+  it('el marco de YouTube se ve: nada de opacidad al 1% ni medidas de un píxel', async () => {
+    await downloadCardHtml(LETTER);
+    const html = await readBlob(saved.blob as Blob);
+
+    expect(html).toContain('id="music-frame"');
+    expect(html).toContain('aspect-ratio: 16 / 9');
+    expect(html).not.toContain('opacity: 0.01');
+  });
+
+  it('la dirección va en data-src: el guion le añade el origin que YouTube exige', async () => {
+    await downloadCardHtml(LETTER);
+    const html = await readBlob(saved.blob as Blob);
+
+    expect(html).toContain('data-src="https://www.youtube.com/embed/dQw4w9WgXcQ?');
+    expect(html).toContain('enablejsapi=1');
+    // Sin `src` fijo: abierto desde el disco no hay origen válido y ni se carga
+    expect(html).not.toMatch(/id="music-frame"[\s\S]{0,200}\ssrc="/);
+  });
+
+  it('sin canción no se imprime el módulo de música', async () => {
+    await downloadCardHtml({ ...LETTER, songUrl: '' });
+    const html = await readBlob(saved.blob as Blob);
+
+    expect(html).not.toContain('id="music-frame"');
+  });
+});

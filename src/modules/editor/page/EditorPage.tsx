@@ -238,33 +238,6 @@ export default function EditorPage() {
                   </div>
 
                   <div>
-                    {/*
-                      El correo es el de quien compra, no el de su pareja, salvo que
-                      él quiera. Decirlo en el propio label evita el error más caro
-                      del producto: mandarle la sorpresa a quien iba a recibirla.
-                    */}
-                    <label className={LABEL} htmlFor="letter-email">
-                      Tu correo (o el correo donde quieres recibir el regalo para dárselo a tu pareja)
-                    </label>
-                    <input
-                      id="letter-email"
-                      type="email"
-                      {...register('recipientEmail')}
-                      autoComplete="email"
-                      placeholder="tucorreo@ejemplo.com"
-                      aria-invalid={Boolean(errors.recipientEmail)}
-                      aria-describedby={errors.recipientEmail ? 'letter-email-error' : undefined}
-                      className={fieldClass(tone('recipientEmail'))}
-                    />
-                    <FieldError id="letter-email-error" message={errors.recipientEmail?.message} />
-                    <p className={HINT}>
-                      <span className="material-symbols-outlined text-[15px]">mail</span>
-                      A esta dirección llegan el enlace de la carta, el código QR y el archivo
-                      descargable. Ponla bien: es lo que vas a entregar.
-                    </p>
-                  </div>
-
-                  <div>
                     <label className={LABEL} htmlFor="letter-sender">De parte de</label>
                     <input
                       id="letter-sender"
@@ -488,7 +461,13 @@ export default function EditorPage() {
               )}
 
               {/* Mientras la confirmación está abierta el error se ve ahí, no aquí. */}
-              {error && !confirmingEmail && (
+              {/*
+                Mientras la confirmación está abierta el error se ve ahí, no
+                aquí. Se compara contra `null` y no por verdadero: el modal
+                abre con el correo vacío, y una cadena vacía es falsa — el
+                aviso salía duplicado, en el modal y detrás de él.
+              */}
+              {error && confirmingEmail === null && (
                 <p className="text-sm text-error font-medium text-center -mt-1" role="alert">
                   {error}
                 </p>
