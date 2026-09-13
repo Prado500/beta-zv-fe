@@ -72,18 +72,22 @@ describe('vídeos de la landing', () => {
    * El guardián de los pendientes.
    *
    * `DEFAULT_VIDEO_ID` es el vídeo de respaldo que se puso mientras llegaban
-   * los definitivos. Ya llegaron todos menos la tercera reacción, que sigue
-   * sin grabarse: esa es la única excepción, y está escrita aquí para que el
-   * día que se grabe esta prueba avise de que hay que quitarla, y para que
-   * nadie publique otro hueco por descuido.
+   * los definitivos. Ya llegaron todos, así que la lista tiene que estar
+   * vacía: esta prueba sigue aquí para que nadie publique otro hueco por
+   * descuido. La constante no desaparece —es la canción de la demo, vía
+   * `DEMO_SONG`—, pero ninguna sección ni reacción debe apuntar ya a ella.
    */
-  it('ningún vídeo sigue con el de respaldo, salvo la reacción que falta', () => {
+  it('ningún vídeo de la landing sigue con el de respaldo', () => {
+    // Anotado a `string` a propósito: con `as const` los IDs son tipos literales y
+    // ninguno es ya el de respaldo, así que TypeScript tumbaría la comparación con
+    // TS2367. La comprobación es de ejecución, para el día que alguien lo reponga.
+    const respaldo: string = DEFAULT_VIDEO_ID;
     const conRespaldo = [
       ...Object.entries(LANDING_VIDEOS),
       ...Object.entries(REACTION_VIDEOS),
-    ].filter(([, id]) => id === DEFAULT_VIDEO_ID);
+    ].filter(([, id]) => id === respaldo);
 
-    expect(conRespaldo.map(([nombre]) => nombre)).toEqual(['sofia']);
+    expect(conRespaldo.map(([nombre]) => nombre)).toEqual([]);
   });
 
   it('tocar el vídeo del hero monta exactamente un iframe, con autoplay, origin y Referer', async () => {
