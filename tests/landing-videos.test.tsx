@@ -6,7 +6,7 @@ import { LivePreview } from '../src/modules/promo/components/sections/LivePrevie
 import { SocialProof } from '../src/modules/promo/components/sections/SocialProof';
 import { Features } from '../src/modules/promo/components/sections/Features';
 import { Pricing } from '../src/modules/promo/components/sections/Pricing';
-import { DEFAULT_VIDEO_ID, DEMO_SONG } from '../src/config/videos';
+import { DEFAULT_VIDEO_ID, DEMO_SONG, LANDING_VIDEOS, REACTION_VIDEOS } from '../src/config/videos';
 import { renderAt, setupUser } from './testUtils';
 
 /**
@@ -55,9 +55,35 @@ describe('vídeos de la landing', () => {
     // 6 vídeos, 3 reacciones y la canción de la demo.
     expect(facades).toHaveLength(10);
 
+    const configurados = new Set<string>([
+      ...Object.values(LANDING_VIDEOS),
+      ...Object.values(REACTION_VIDEOS),
+      DEMO_SONG.videoId,
+    ]);
     const posters = Array.from(document.querySelectorAll<HTMLImageElement>('img[src*="i.ytimg.com"]'));
     expect(posters.length).toBeGreaterThanOrEqual(9);
-    posters.forEach((poster) => expect(poster.getAttribute('src')).toContain(`/vi/${DEFAULT_VIDEO_ID}/`));
+    posters.forEach((poster) => {
+      const id = poster.getAttribute('src')?.match(/\/vi\/([^/]+)\//)?.[1];
+      expect(configurados).toContain(id);
+    });
+  });
+
+  /*
+   * El guardián de los pendientes.
+   *
+   * `DEFAULT_VIDEO_ID` es el vídeo de respaldo que se puso mientras llegaban
+   * los definitivos. Ya llegaron todos menos la tercera reacción, que sigue
+   * sin grabarse: esa es la única excepción, y está escrita aquí para que el
+   * día que se grabe esta prueba avise de que hay que quitarla, y para que
+   * nadie publique otro hueco por descuido.
+   */
+  it('ningún vídeo sigue con el de respaldo, salvo la reacción que falta', () => {
+    const conRespaldo = [
+      ...Object.entries(LANDING_VIDEOS),
+      ...Object.entries(REACTION_VIDEOS),
+    ].filter(([, id]) => id === DEFAULT_VIDEO_ID);
+
+    expect(conRespaldo.map(([nombre]) => nombre)).toEqual(['sofia']);
   });
 
   it('tocar el vídeo del hero monta exactamente un iframe, con autoplay, origin y Referer', async () => {
@@ -69,7 +95,7 @@ describe('vídeos de la landing', () => {
     const frames = document.querySelectorAll('iframe');
     expect(frames).toHaveLength(1);
     expect(frames[0].getAttribute('src')).toBe(
-      `https://www.youtube.com/embed/${DEFAULT_VIDEO_ID}?autoplay=1&playsinline=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`,
+      `https://www.youtube.com/embed/${LANDING_VIDEOS.hook}?autoplay=1&playsinline=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`,
     );
     expect(frames[0].getAttribute('allow')).toContain('autoplay');
     expect(frames[0].getAttribute('referrerpolicy')).toBe('strict-origin-when-cross-origin');
