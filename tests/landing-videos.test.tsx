@@ -47,6 +47,27 @@ describe('vídeos de la landing', () => {
     expect(document.querySelector('iframe')).toBeNull();
   });
 
+  /*
+   * La portada del hero es del propio vídeo.
+   *
+   * Llevaba una foto de stock de corazones desenfocados: lo que se anunciaba
+   * en el teléfono no era lo que sonaba al tocarlo. Ninguna fachada puede
+   * volver a traer una imagen de fuera.
+   */
+  it('la portada del hero es el fotograma del vídeo, no una imagen de archivo', () => {
+    const { container } = renderLanding();
+
+    const hero = screen
+      .getByRole('button', { name: 'Reproducir: Video 1 Hook' })
+      .querySelector('img');
+    expect(hero?.getAttribute('src')).toContain(`/vi/${LANDING_VIDEOS.hook}/`);
+
+    const ajenas = Array.from(container.querySelectorAll('img'))
+      .map((img) => img.getAttribute('src') ?? '')
+      .filter((src) => /^https?:/.test(src) && !src.includes('i.ytimg.com'));
+    expect(ajenas).toEqual([]);
+  });
+
   it('no queda ningún ID de relleno y cada fachada apunta al vídeo configurado', () => {
     renderLanding();
     expect(document.body.innerHTML).not.toContain('TU_VIDEO_ID');

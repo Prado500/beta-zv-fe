@@ -4,9 +4,6 @@ import { YouTubeFacade } from '../../../../components/media/YouTubeFacade';
 import { LANDING_VIDEOS } from '../../../../config/videos';
 import { QrShowcase } from './QrShowcase';
 
-/** Portada del video del hero: una foto propia, no la miniatura de YouTube. */
-const HERO_POSTER = 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?q=80&w=600';
-
 export const Hero: React.FC = () => (
   <section id="inicio" className="relative overflow-hidden py-12 md:py-section-gap scroll-mt-32">
     {/* Halos del hero como gradiente pintado: dos divs de 800px con
@@ -111,7 +108,13 @@ export const Hero: React.FC = () => (
             {/* El video del gancho no se monta hasta que se toca: la fachada
                 pinta la portada y el botón; el iframe llega con el clic. */}
             <div className="w-full h-full bg-surface-container-lowest rounded-[2.2rem] overflow-hidden relative aspect-9/19">
-              <YouTubeFacade videoId={LANDING_VIDEOS.hook} title="Video 1 Hook" poster={HERO_POSTER}>
+              {/*
+                Sin `poster`: la fachada usa la miniatura del propio vídeo. Antes
+                iba una foto de stock de corazones desenfocados, así que la
+                portada no tenía nada que ver con lo que se reproduce al tocar
+                —se anunciaba una cosa y sonaba otra.
+              */}
+              <YouTubeFacade videoId={LANDING_VIDEOS.hook} title="Video 1 Hook">
                 <span className="absolute bottom-4 left-4 right-4 flex items-center gap-3 rounded-xl border border-white/10 bg-black/60 p-3 backdrop-blur-xl">
                   <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20 text-primary">
                     <span className="material-symbols-outlined">favorite</span>
