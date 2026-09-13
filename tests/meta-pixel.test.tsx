@@ -58,9 +58,7 @@ afterEach(() => {
   delete window.fbq;
   delete window._fbq;
   script()?.remove();
-  // La decisión de cookies vive en `localStorage`: sin borrarla, la primera
-  // prueba que acepte dejaría el píxel encendido para todas las demás.
-  window.localStorage.clear();
+  // La decisión de cookies, que vive en `localStorage`, la limpia `setup.ts`.
 });
 
 describe('Meta Pixel', () => {
