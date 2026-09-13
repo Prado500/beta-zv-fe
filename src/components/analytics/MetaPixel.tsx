@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useConsent } from '../../hooks/useConsent';
 import { initMetaPixel, trackPageView } from '../../utils/metaPixel';
 
 /**
@@ -25,6 +26,14 @@ import { initMetaPixel, trackPageView } from '../../utils/metaPixel';
  */
 export const MetaPixel = (): null => {
   const { pathname } = useLocation();
+  /*
+   * La decisión de cookies, entre las dependencias del efecto. La puerta ya la
+   * guarda `utils/metaPixel`, así que esto no es la cerradura: es lo que hace
+   * que aceptar surta efecto EN EL ACTO. Sin ella habría que esperar a la
+   * siguiente navegación, y la visita en la que se acepta —que es justo la que
+   * llega de un anuncio— se perdería entera.
+   */
+  const consent = useConsent();
   const lastTracked = useRef<string | null>(null);
 
   useEffect(() => {
@@ -33,7 +42,7 @@ export const MetaPixel = (): null => {
 
     lastTracked.current = pathname;
     trackPageView();
-  }, [pathname]);
+  }, [pathname, consent]);
 
   return null;
 };
