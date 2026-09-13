@@ -115,6 +115,53 @@ describe('downloadCardHtml', () => {
  * El archivo descargado cuenta la misma historia que la previa:
  * sobre -> floración -> frase -> recuerdos -> estallido -> carta.
  */
+/**
+ * El ancho de la carta en el móvil.
+ *
+ * `.phone` llevaba `max-width: 360px` sin condición. Casi ningún móvil actual
+ * mide 360 px —390, 412, 430—, así que quedaban franjas del escenario a los
+ * lados y el fondo del tema aparecía cortado antes del borde de la pantalla.
+ * El tope solo tiene sentido de 640px arriba, donde sí hay escenario alrededor.
+ */
+describe('el ancho de la carta descargada', () => {
+  /** Devuelve el bloque de reglas de un selector dentro de un ámbito de CSS. */
+  const reglasDe = (css: string, selector: string) =>
+    css.slice(css.indexOf(`${selector} {`)).split('}')[0];
+
+  it('en móvil va a sangre: el tope de ancho no está en la regla base', async () => {
+    await downloadCardHtml(LETTER);
+    const html = await readBlob(saved.blob as Blob);
+
+    expect(reglasDe(html, '.phone')).not.toContain('max-width');
+    // El ancho completo sí, que es lo que llena la pantalla
+    expect(reglasDe(html, '.phone')).toContain('width: 100%');
+  });
+
+  it('el contenido sigue al dispositivo en vez de quedarse clavado', async () => {
+    await downloadCardHtml(LETTER);
+    const html = await readBlob(saved.blob as Blob);
+
+    /*
+     * Con la carta a sangre, un ancho fijo se vuelve MÁS estrecho en
+     * proporción cuanto mayor es el móvil. Fluido, el margen se mantiene.
+     */
+    expect(reglasDe(html, ':root')).toContain('--content-w: min(340px, 80vw)');
+
+    // Y nada dentro del teléfono puede volver a llevar un ancho suelto
+    expect(html).not.toMatch(/max-width:\s*2\d\dpx;/);
+  });
+
+  it('de 640px arriba recupera el tope, que es donde hay escenario que enseñar', async () => {
+    await downloadCardHtml(LETTER);
+    const html = await readBlob(saved.blob as Blob);
+
+    // Se busca desde la propia regla base: hay bloques de 640px antes de ella
+    const desdeLaBase = html.slice(html.indexOf('.phone {'));
+    const escritorio = desdeLaBase.slice(desdeLaBase.indexOf('@media (min-width: 640px)'));
+    expect(reglasDe(escritorio, '.phone')).toContain('max-width: 430px');
+  });
+});
+
 describe('los momentos de la carta descargada', () => {
   it('la floración de tallos viaja lista para arrancar, con su pasto', async () => {
     await downloadCardHtml(LETTER);

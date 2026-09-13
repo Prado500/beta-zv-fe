@@ -289,13 +289,24 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ data, isFullView = f
     return (
       <CardStage palette={palette} recipient={recipientName}>
         {/*
-          Medidas del teléfono, las mismas del HTML descargable: 360 px de
-          ancho como tope, la pantalla entera en móvil y una tarjeta con
-          esquinas y sombra de 640 px arriba. Antes era `max-w-lg` (512 px) y
-          la carta salía casi cuadrada, con el contenido nadando a lo ancho.
+          Medidas del teléfono, las mismas del HTML descargable: la pantalla
+          entera en móvil y una tarjeta de 430 px con esquinas y sombra de
+          640 px arriba. Antes era `max-w-lg` (512 px) y la carta salía casi
+          cuadrada, con el contenido nadando a lo ancho.
+
+          El tope es `sm:` y no de base a propósito: casi ningún móvil actual
+          mide 360 px —390, 412, 430— así que el tope dejaba franjas de
+          escenario a los lados, con el patrón de flores cortado antes del
+          borde. En móvil la carta va a sangre; el tope solo tiene sentido
+          cuando hay escenario alrededor que enseñar.
+
+          Y ese tope es 430, no 360: con 360 sobre 820 de alto la pieza salía
+          larga y estrecha, con el texto cayendo en una columna de dos
+          palabras. La hoja ya es fluida hasta 420 px (`letterCss`), así que
+          ensanchar el marco ensancha la carta, no el margen.
         */}
         <div
-          className="relative z-10 flex w-full max-w-[360px] flex-col overflow-hidden h-dvh sm:h-[820px] sm:max-h-[92dvh] sm:rounded-[28px] sm:shadow-[0_40px_80px_-24px_rgba(0,0,0,0.35),0_4px_14px_-6px_rgba(0,0,0,0.18)]"
+          className="relative z-10 flex w-full flex-col overflow-hidden h-dvh sm:h-[820px] sm:max-w-[430px] sm:max-h-[92dvh] sm:rounded-[28px] sm:shadow-[0_40px_80px_-24px_rgba(0,0,0,0.35),0_4px_14px_-6px_rgba(0,0,0,0.18)]"
           style={{ backgroundColor: palette.cardBg, border: `1px solid ${palette.border}` }}
         >
           {body}
