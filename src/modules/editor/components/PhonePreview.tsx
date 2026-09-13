@@ -129,11 +129,13 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ data, isFullView = f
   });
 
   /**
-   * El muro de interacción. Tocar el sobre es el gesto que el navegador exige
-   * para reproducir con sonido; la orden de reproducir sale cuando la hoja ya
-   * se ve, con el reproductor a la vista. Si aun así el navegador la rechaza
-   * —iOS no traspasa el gesto a un iframe de otro origen—, el reproductor lo
-   * dice y un toque sobre el vídeo basta.
+   * Segundo intento, ya con la hoja a la vista.
+   *
+   * El primero sale del propio toque (ver `handleOpen`). Este cubre el caso en
+   * que YouTube lo rechazara por visibilidad: pide que más de la mitad del
+   * reproductor se vea para arrancar sola, y al abrir el sobre el reproductor
+   * todavía está al final de la carta, sin asomar. Sobre un vídeo que ya suena
+   * `playVideo()` no hace nada, así que repetirlo no interrumpe.
    */
   useEffect(() => {
     if (!reading || !videoId) return;
@@ -144,6 +146,23 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ data, isFullView = f
   const handleOpen = () => {
     if (card.view !== 'envelope') return;
     if ('vibrate' in navigator) navigator.vibrate?.(12);
+
+    /*
+     * La canción arranca AQUÍ, dentro del propio manejador del toque.
+     *
+     * Es la única ventana que sirve: los navegadores móviles solo dejan sonar
+     * lo que se pide durante un gesto del usuario, y de forma síncrona. Antes
+     * la orden salía del efecto de arriba, varios segundos después —sobre,
+     * floración, frase, recuerdos, estallido—, cuando la activación ya había
+     * caducado: en el móvil la carta se abría en silencio.
+     *
+     * `play()` no devuelve promesa que encadenar (la IFrame API de YouTube no
+     * las usa), así que no hay nada que capturar: si el navegador se niega, el
+     * hook lo detecta por `onAutoplayBlocked` o por su margen de espera y deja
+     * el reproductor en estado `blocked`. Ni excepción ni ruido en consola.
+     */
+    if (videoId) playSong();
+
     card.open();
   };
 
