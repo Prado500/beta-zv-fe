@@ -21,7 +21,7 @@ export const LANDING_VIDEOS = {
   /** Vídeo 2 - Sección "Origen". */
   origin: 'wAqowOnCbmo',
   /** Vídeo 3 - Demostración sobre el editor en vivo. */
-  demo: 'VUZ0Hdj6IHw',
+  demo: 'yad4fEkE988',
   /** Vídeo 4 - Reacciones en grupo, en la prueba social. */
   validation: 'Vqk8Zylyfxc',
   /** Vídeo 5 - Sección de características. */
@@ -33,11 +33,11 @@ export const LANDING_VIDEOS = {
 /** Una reacción por testimonio, por su `id`. Son los cortos de Instagram. */
 export const REACTION_VIDEOS = {
   /** Reacción 1 */
-  qa: 'd79INXy2POU',
+  qa: '6LeeDI5H1BI',
   /** Reacción 2 */
-  andrea: 'H9a6-Ron3ac',
+  andrea: 'd79INXy2POU',
   /** Reacción 3: pendiente de grabar. Hasta entonces, el de respaldo. */
-  sofia: 'ipQ9WbfUJUg',
+  sofia: DEFAULT_VIDEO_ID,
 } as const;
 
 /** Canción de la demo de la landing: la que "viene puesta" en el teléfono. */

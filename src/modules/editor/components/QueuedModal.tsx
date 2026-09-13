@@ -76,7 +76,7 @@ export const QueuedModal: React.FC<QueuedModalProps> = ({
             ) : (
               'recibirás un correo electrónico'
             )}{' '}
-            con el enlace permanente de la carta y el archivo adjunto.
+            con el enlace permanente de la carta y su código QR.
           </p>
 
           {message && <p className="text-xs text-wine/60 mt-3 leading-relaxed">{message}</p>}
@@ -100,7 +100,20 @@ export const QueuedModal: React.FC<QueuedModalProps> = ({
               </li>
               <li className="flex items-start gap-2">
                 <span className="material-symbols-outlined text-wine text-[18px] mt-0.5">send</span>
-                Te enviamos todo por correo. No hace falta que esperes aquí.
+                Te enviamos el enlace y el QR por correo. No hace falta que esperes aquí.
+              </li>
+              {/*
+                El archivo HTML no viaja por correo: se descarga desde el panel.
+                Decirlo aquí es lo que evita que alguien busque un adjunto que no
+                existe y dé por perdido lo que compró.
+              */}
+              <li className="flex items-start gap-2">
+                <span className="material-symbols-outlined text-wine text-[18px] mt-0.5">
+                  download
+                </span>
+                Tu carta en HTML, para guardarla, te espera en{' '}
+                <strong className="text-wine">Mis dedicatorias</strong>: la descargas con el botón
+                "Carta HTML" cuando quieras.
               </li>
             </ul>
           </div>

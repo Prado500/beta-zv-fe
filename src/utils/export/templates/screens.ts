@@ -4,6 +4,7 @@ import { motifSvg, type ThemeDecor } from '../../themeDecor';
 import { COVER_DUST, garlandSvg, giftSvg, type Gift, type GiftPaint } from '../../themeGifts';
 import { withAlpha } from '../../themePalette';
 import { stageRoseColors } from '../../stageTheme';
+import { NO_JS_NOTICE_HTML } from './noJs';
 import { cornerFlourish, heartConfetti, icon, ornament, rose } from './ornaments';
 
 /** Colores con los que se tiñen los objetos del tema. */
@@ -180,22 +181,7 @@ export const buildCard = (
   return `
     <div class="card" id="card">
       <div class="card__inner">
-        <!--
-          Solo se ve donde no corren los scripts: la vista previa de un gestor
-          de archivos o de una app de mensajería, típica al abrir el .html en
-          el móvil. Ahí la carta se abre y se anima igual, pero la canción no
-          puede sonar y las fotos no se descubren tocándolas.
-
-          Va dentro de la carta, no fijo en pantalla: se lee cuando toca, al
-          llegar, y no tapa el sobre ni la floración.
-        -->
-        <noscript>
-          <p class="sin-guion">
-            Estás viendo tu <b>archivo de respaldo sin conexión</b>. Para escuchar tu
-            canción y disfrutar de las animaciones completas, abre el enlace web (QR)
-            original desde tu navegador.
-          </p>
-        </noscript>
+        ${NO_JS_NOTICE_HTML}
         <button type="button" class="card__close" id="close-card">${icon('lock', 13)} Cerrar</button>
 
         <!--

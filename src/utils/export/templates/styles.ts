@@ -3,6 +3,7 @@ import { withAlpha } from '../../themePalette';
 import { edgeCss, textureCss, type ThemeDecor } from '../../themeDecor';
 import { stageColors } from '../../stageTheme';
 import { BLOOM_CSS } from '../../bloomArt';
+import { NO_JS_TRIGGER_CSS } from './noJs';
 import { PHRASE_CSS } from '../../phraseLayout';
 import { MEM_CSS } from '../../memoriesLayout';
 
@@ -51,6 +52,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  /*
+   * dvh DESPUÉS de vh, nunca en su lugar: quien no lo entienda se queda con la
+   * primera, y quien sí, la pisa. En el móvil 100vh mide la pantalla CON la
+   * barra del navegador retraída, no la que se ve.
+   */
   min-height: 100vh;
   min-height: 100dvh;
   overflow: hidden;
@@ -128,15 +134,11 @@ body {
   width: 100%;
   max-width: 360px;
   /*
-   * dvh DESPUÉS de vh, nunca en su lugar: quien no lo entienda se queda
-   * con la primera y quien sí, la pisa.
-   *
-   * En el móvil 100vh es la pantalla CON la barra del navegador retraída,
-   * no la que se ve. Con la barra delante, el fondo del teléfono caía por
-   * debajo del borde y, como el cuerpo no desplaza, no había manera de
-   * llegar al final de la carta: se quedaba clavada donde acabara el texto.
-   * dvh sigue a la pantalla de verdad, también cuando la barra aparece y
-   * desaparece al desplazarse.
+   * Con la barra del navegador delante, el fondo del teléfono caía por debajo
+   * del borde y, como el cuerpo no desplaza, no había manera de llegar al final
+   * de la carta: se quedaba clavada donde acabara el texto. La unidad dinámica
+   * sigue a la pantalla de verdad, también cuando la barra aparece y desaparece
+   * al desplazarse.
    */
   height: 100vh;
   height: 100dvh;
@@ -155,10 +157,7 @@ body {
   background: var(--card-bg);
 }
 .phone__bg { position: absolute; inset: 0; background: var(--bg); z-index: 0; pointer-events: none; }
-
-/* El gatillo del modo sin guión: invisible y sin estorbar mientras haya guión. */
-.css-trigger { display: none; }
-
+${NO_JS_TRIGGER_CSS}
 @media (min-width: 640px) {
   .phone {
     height: 820px;

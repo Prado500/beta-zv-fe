@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { CookieSettings } from '../../../../components/ui/CookieSettings';
 import { Ornament, Rose } from '../../../../components/decor';
 import { LEGAL_ROUTES } from '../../../legal/legalRoutes';
 
@@ -38,6 +39,13 @@ export const Footer: React.FC = () => {
           <a className={FOOTER_LINK} href="mailto:admin@zyvencore.com">
             Contáctanos
           </a>
+          {/*
+            La vuelta atrás del aviso de cookies. Va con los enlaces legales
+            porque es donde se busca, y solo aparece cuando hay una decisión
+            que revisar. Lleva `FOOTER_LINK` como sus vecinos, más lo que hace
+            falta para que un `button` no se distinga de ellos.
+          */}
+          <CookieSettings className={`${FOOTER_LINK} cursor-pointer bg-transparent border-0`} />
         </nav>
       </div>
     </footer>

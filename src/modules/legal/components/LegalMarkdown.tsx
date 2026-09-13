@@ -127,10 +127,61 @@ interface LegalMarkdownProps {
   compact?: boolean;
 }
 
+/**
+ * Finales de línea, normalizados antes de trocear.
+ *
+ * El texto llega de dos sitios y ninguno garantiza el mismo final de línea: los
+ * `.md` del repo los convierte a CRLF el checkout en Windows, y el documento
+ * que sirve el backend viene como lo guardaran. Los bloques se separan por una
+ * línea en blanco, así que con `\r\n` no había ninguna que encontrar: el
+ * documento entero salía como un solo título, con el índice apuntando a anclas
+ * que no existían. En el agente de Linux, con LF, no se veía.
+ */
+const normalizeNewlines = (text: string): string => text.replace(/\r\n?/g, '\n');
+
+/**
+ * Un encabezado es un bloque por sí mismo aunque no lleve línea en blanco detrás.
+ *
+ * El documento abre con `# Título` y `## Subtítulo` en líneas seguidas. Como el
+ * troceo es por línea en blanco, los dos caían en el mismo bloque, y `Block` elige
+ * la etiqueta mirando el prefijo de la primera línea y vuelca el resto dentro: el
+ * `##` del subtítulo se leía literal dentro del `<h1>`. Las páginas no lo sufrían
+ * porque `parseLegalDocument` les entrega el cuerpo desde el primer apartado
+ * numerado; el modal muestra el documento entero —es el texto cuyo checksum se
+ * firma— y ahí sí se veía.
+ *
+ * Solo se reconocen los tres niveles que `Block` sabe pintar: separar un `####` no
+ * cambiaría nada, seguiría saliendo como párrafo.
+ */
+const HEADING = /^#{1,3} /;
+
+const splitHeadings = (block: string): string[] => {
+  const blocks: string[] = [];
+  let pending: string[] = [];
+
+  const flush = () => {
+    if (pending.length) blocks.push(pending.join('\n'));
+    pending = [];
+  };
+
+  for (const line of block.split('\n')) {
+    if (HEADING.test(line)) {
+      flush();
+      blocks.push(line);
+    } else {
+      pending.push(line);
+    }
+  }
+  flush();
+
+  return blocks;
+};
+
 export const LegalMarkdown: React.FC<LegalMarkdownProps> = ({ markdown, compact = false }) => (
   <>
-    {markdown
+    {normalizeNewlines(markdown)
       .split('\n\n')
+      .flatMap(splitHeadings)
       .map((block) => block.trim())
       .filter(Boolean)
       .map((block, index) => (

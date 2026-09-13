@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { MetaPixel } from './components/analytics/MetaPixel';
 import { CookieBanner } from './components/ui/CookieBanner';
-import { usePixelPageViews } from './hooks/usePixelPageViews';
 import { AuthProvider } from './modules/auth/AuthProvider';
 import LandingPage from './modules/promo/page/LandingPage';
 import EditorPage from './modules/editor/page/EditorPage';
@@ -11,25 +11,16 @@ import TermsPage from './modules/legal/page/TermsPage';
 import PrivacyPage from './modules/legal/page/PrivacyPage';
 import { LEGAL_ROUTES } from './modules/legal/legalRoutes';
 
-/**
- * El pixel de Meta, que necesita estar dentro del Router para saber la ruta.
- * No pinta nada, y no carga nada mientras no haya identificador configurado Y
- * consentimiento expreso en el banner de cookies.
- */
-const PixelPageViews = () => {
-  usePixelPageViews();
-  return null;
-};
-
 export default function App() {
   return (
     <Router>
       {/*
         Meta Pixel. Va aquí dentro, y no en `index.html`, porque en una SPA el
         documento se carga una sola vez: es el router quien sabe que el usuario
-        cambió de pantalla.
+        cambió de pantalla. No pinta nada, y no carga nada mientras no haya
+        consentimiento expreso en el aviso de cookies.
       */}
-      <PixelPageViews />
+      <MetaPixel />
       {/*
         La sesión se conoce en un solo sitio. La cookie es `HttpOnly`, así que
         el proveedor pregunta a `/me` —solo si hay pista de un inicio previo— y

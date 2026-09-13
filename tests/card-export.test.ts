@@ -195,117 +195,249 @@ describe('la música de la carta descargada', () => {
   });
 });
 
+/* ------------------------------------------------------------------------- *
+ * La carta descargada, abierta en un iPhone.
+ *
+ * Son dos averías distintas y se prueban por separado, porque se arreglan por
+ * separado: el guión que no llega a correr, y la pantalla que no se mide como
+ * parece.
+ * ------------------------------------------------------------------------- */
+
+/** La hoja principal: la que se aplica siempre, guión o no. */
+const hojaPrincipal = (html: string) => html.slice(html.indexOf('<style>'), html.indexOf('</style>'));
+
+/** La hoja de respaldo: solo la aplica el navegador cuando NO hay guión. */
+const hojaSinGuion = (html: string) =>
+  html.slice(html.indexOf('<noscript><style>'), html.indexOf('</style></noscript>'));
+
+/** El cuerpo de una regla, para afirmar sobre ella y no sobre toda la hoja. */
+const regla = (hoja: string, selector: string) => {
+  const desde = hoja.indexOf(selector);
+  return desde < 0 ? '' : hoja.slice(desde, hoja.indexOf('}', desde));
+};
+
+/** El primer número capturado por el patrón, como número. */
+const espera = (hoja: string, patron: RegExp) => Number(hoja.match(patron)?.[1]);
+
 /**
- * Lo que hace falta para que la carta descargada sirva en un teléfono, que es
- * donde se abre casi siempre.
+ * Abierto desde la vista previa de un gestor de archivos o de una app de
+ * mensajería —el Quick Look de iOS, sin ir más lejos— el guión puede no
+ * ejecutarse nunca. Toda la coreografía vive ahí dentro, así que sin red lo
+ * único que se ve es un sobre bonito que no responde al tocarlo.
  */
-describe('la carta descargada en el móvil', () => {
-  it('mide la pantalla con dvh, no solo con vh', async () => {
+describe('la carta descargada sin guión (Quick Look de iOS)', () => {
+  it('lleva una hoja de respaldo en el <head>, y DESPUÉS de la principal', async () => {
+    await downloadCardHtml(LETTER);
+    const html = await readBlob(saved.blob as Blob);
+    const head = html.slice(0, html.indexOf('</head>'));
+
+    // Antes de la principal no pisaría nada: el orden es el que decide.
+    expect(head).toContain('<noscript><style>');
+    expect(head.indexOf('<noscript><style>')).toBeGreaterThan(head.indexOf('<style>'));
+  });
+
+  it('el gatillo del toque es hermano ANTERIOR del sobre, la floración, el estallido y la carta', async () => {
     await downloadCardHtml(LETTER);
     const html = await readBlob(saved.blob as Blob);
 
     /*
-     * En el móvil 100vh es la pantalla CON la barra del navegador retraída. Con
-     * la barra delante, el fondo del teléfono caía fuera y no había forma de
-     * llegar al final de la carta. `dvh` va DESPUÉS de `vh`, nunca en su lugar:
-     * quien no lo entienda se queda con la primera.
+     * El combinador ~ solo alcanza hermanos POSTERIORES. Metido dentro del
+     * <noscript> no llegaría a nadie, y duplicar el DOM ahí dentro doblaría el
+     * peso de un archivo que lleva las fotos incrustadas.
      */
-    expect(html).toContain('height: 100vh;');
-    expect(html).toContain('height: 100dvh;');
-    const vh = html.indexOf('height: 100vh;');
-    expect(html.indexOf('height: 100dvh;')).toBeGreaterThan(vh);
+    const gatillo = html.indexOf('id="css-open-card"');
+    expect(gatillo).toBeGreaterThan(html.indexOf('class="phone__screen"'));
+    for (const despues of [
+      '<div class="envelope" id="envelope">',
+      'id="bloom-scene"',
+      '<div class="blooms">',
+      '<div class="card" id="card">',
+    ]) {
+      expect(html.indexOf(despues)).toBeGreaterThan(gatillo);
+    }
+    expect(html).toContain('<label for="css-open-card"');
   });
 
-  it('sin JavaScript la carta se lee igual, en vez de quedarse en el sobre', async () => {
+  it('tocar el sobre abre la solapa, lo aparta y trae la carta', async () => {
     await downloadCardHtml(LETTER);
-    const html = await readBlob(saved.blob as Blob);
+    const hoja = hojaSinGuion(await readBlob(saved.blob as Blob));
+
+    expect(hoja).toContain('#css-open-card:checked ~ .envelope .envelope__flap { transform: rotateX(-172deg); }');
+    expect(hoja).toMatch(/#css-open-card:checked ~ \.envelope \{ animation: nsSalir [^}]*620ms/);
+    expect(hoja).toContain('#css-open-card:checked ~ .card { animation-delay: 4820ms; }');
+  });
+
+  it('y si el visor no dejara tocar, se abre sola y en orden', async () => {
+    await downloadCardHtml(LETTER);
+    const hoja = hojaSinGuion(await readBlob(saved.blob as Blob));
 
     /*
-     * Toda la coreografía vive en el guión. Abierto desde la vista previa de un
-     * gestor de archivos o de una app de mensajería —el Quick Look de iOS, sin
-     * ir más lejos—, el guión puede no correr nunca: sin esto quedaba un sobre
-     * bonito que no responde al tocarlo.
+     * No se puede comprobar desde aquí si el Quick Look deja marcar una casilla.
+     * Si no dejara, sin esta red volveríamos al sobre que no responde, que es de
+     * donde veníamos.
      */
-    expect(html).toContain('<noscript>');
-    expect(html).toMatch(/<noscript>[\s\S]*\.envelope \{ animation: nsSalir[\s\S]*<\/noscript>/);
-    // La carta deja de estar escondida; quien la destapa es la línea de tiempo
-    expect(html).toMatch(/<noscript>[\s\S]*animation: nsEntrar[\s\S]*<\/noscript>/);
-    // Y la canción, que tampoco puede sonar sin guión, se ofrece como enlace
-    expect(html).toMatch(/<noscript>[\s\S]*\.player--blocked \{ display: flex[\s\S]*<\/noscript>/);
+    const sobre = espera(hoja, /^\s*\.envelope \{ animation: nsSalir 600ms ease (\d+)ms forwards; \}/m);
+    const estallido = espera(hoja, /^\s*\.bloom \{ animation: flowerBloom [^}]*?\s(\d+)ms forwards !important/m);
+    const carta = espera(hoja, /^\s*\.card \{ pointer-events: auto; animation: nsEntrar [^}]*?\s(\d+)ms forwards/m);
+
+    expect(sobre).toBe(8000);
+    expect(sobre).toBeLessThan(estallido);
+    expect(estallido).toBeLessThan(carta);
   });
 
-  it('y dice qué se ve así, para que no parezca que la carta llegó rota', async () => {
+  it('la música, que tampoco puede sonar sin guión, se ofrece como enlace', async () => {
+    await downloadCardHtml(LETTER);
+    const hoja = hojaSinGuion(await readBlob(saved.blob as Blob));
+
+    expect(hoja).toContain('.music__screen, .music .player--live { display: none; }');
+    expect(hoja).toContain('.music .player--blocked { display: flex; }');
+  });
+
+  it('el toque adelanta la secuencia ENTERA: el desfase es el mismo en los tres momentos', async () => {
+    await downloadCardHtml(LETTER);
+    const hoja = hojaSinGuion(await readBlob(saved.blob as Blob));
+
+    /*
+     * Esta es la invariante que sostiene las doce esperas: entre la secuencia
+     * que arranca sola y la que arranca al tocar solo cambia CUÁNDO empieza.
+     * Si alguien retoca un número suelto, aquí se ve.
+     */
+    const autoSobre = espera(hoja, /^\s*\.envelope \{ animation: nsSalir 600ms ease (\d+)ms/m);
+    const tocaSobre = espera(hoja, /#css-open-card:checked ~ \.envelope \{ animation: nsSalir 600ms ease (\d+)ms/);
+    const autoEstallido = espera(hoja, /^\s*\.bloom \{ animation: flowerBloom [^}]*?\s(\d+)ms forwards !important/m);
+    const tocaEstallido = espera(hoja, /#css-open-card:checked ~ \.blooms \.bloom \{ animation-delay: (\d+)ms !important/);
+    const autoCarta = espera(hoja, /^\s*\.card \{ pointer-events: auto; animation: nsEntrar [^}]*?\s(\d+)ms forwards/m);
+    const tocaCarta = espera(hoja, /#css-open-card:checked ~ \.card \{ animation-delay: (\d+)ms/);
+
+    const desfase = autoSobre - tocaSobre;
+    expect(desfase).toBeGreaterThan(0);
+    expect(autoEstallido - tocaEstallido).toBe(desfase);
+    expect(autoCarta - tocaCarta).toBe(desfase);
+
+    // La floración se mide con calc() desde ese mismo arranque, en los dos casos
+    expect(hoja).toContain(`calc(var(--d) + ${autoSobre}ms)`);
+    expect(hoja).toContain(`calc(var(--d) + ${tocaSobre}ms)`);
+  });
+
+  it('el estallido lleva su retraso EN LÍNEA: solo !important lo gana', async () => {
+    await downloadCardHtml(LETTER);
+    const html = await readBlob(saved.blob as Blob);
+    const hoja = hojaSinGuion(html);
+
+    // Que el estilo en línea existe de verdad, y no se pide !important por costumbre
+    expect(html).toMatch(/class="bloom" style="[^"]*animation-delay:/);
+    expect(hoja).toMatch(/^\s*\.bloom \{ animation: flowerBloom [^}]*!important; \}/m);
+    expect(hoja).toMatch(/#css-open-card:checked ~ \.blooms \.bloom \{ animation-delay: \d+ms !important; \}/);
+  });
+
+  it('la capa que recibe el toque se aparta con transform, no con visibility', async () => {
+    await downloadCardHtml(LETTER);
+    const hoja = hojaSinGuion(await readBlob(saved.blob as Blob));
+
+    /*
+     * Cubre la pantalla entera y no es hija del texto que se desplaza: dejarla
+     * puesta era una carta que llega y no se deja leer hasta el final. Y se
+     * aparta con transform porque WebKit no conserva el visibility del último
+     * fotograma, y ahí seguía recibiendo toques.
+     */
+    const salida = hoja.match(/@keyframes nsGatilloFuera \{.*\}/)?.[0] ?? '';
+    expect(salida).toContain('transform: translateY(-200%)');
+    expect(salida).not.toContain('visibility');
+    expect(hoja).toMatch(/\.css-trigger__hit \{[^}]*animation: nsGatilloFuera 1ms linear \d+ms forwards;/);
+    // Una sola regla para la capa: no dos declaraciones sueltas del mismo selector
+    expect(hoja.match(/^\s*\.css-trigger__hit \{/gm)).toHaveLength(1);
+  });
+
+  it('con guión, nada de esto existe para nadie', async () => {
     await downloadCardHtml(LETTER);
     const html = await readBlob(saved.blob as Blob);
 
-    expect(html).toMatch(/<noscript>[\s\S]*sin-guion[\s\S]*<\/noscript>/);
+    // El gatillo se apaga desde la hoja principal, que es la que sí corre siempre
+    expect(hojaPrincipal(html)).toContain('.css-trigger { display: none; }');
+    expect(hojaPrincipal(html)).not.toContain('#css-open-card');
+
+    // Y ninguna regla del modo sin guión se escapa fuera del <noscript>
+    const fuera = html.replace(/<noscript>[\s\S]*?<\/noscript>/g, '');
+    expect(fuera).not.toContain('#css-open-card:checked');
+    expect(fuera).not.toContain('nsEntrar');
+    expect(fuera).not.toContain('nsGatilloFuera');
+  });
+
+  it('avisa de qué se está viendo, dentro de la carta y no tapando el sobre', async () => {
+    await downloadCardHtml(LETTER);
+    const html = await readBlob(saved.blob as Blob);
+
+    expect(html).toMatch(/<noscript>\s*<p class="sin-guion">/);
     expect(html).toContain('archivo de respaldo sin conexión');
     expect(html).toContain('abre el enlace web (QR)');
-    // El aviso va DENTRO de la carta: no debe tapar el sobre ni la floración
+
+    // Se lee cuando toca, al llegar: ni antes del sobre ni por delante de la hoja
     const aviso = html.indexOf('<p class="sin-guion">');
     expect(aviso).toBeGreaterThan(html.indexOf('<div class="card__inner">'));
-    expect(aviso).toBeLessThan(html.indexOf('class="sheet"'));
+    expect(aviso).toBeLessThan(html.indexOf('<div class="sheet">'));
+  });
+});
+
+/**
+ * En el móvil `100vh` es la pantalla CON la barra del navegador retraída, no la
+ * que se ve. Con la barra delante el fondo del teléfono caía por debajo del
+ * borde y, como el cuerpo no desplaza, no había manera de llegar al final de la
+ * carta: se quedaba clavada donde acabara el texto.
+ */
+describe('la carta descargada y la barra del navegador', () => {
+  it('el teléfono se mide con vh y, justo después, con dvh', async () => {
+    await downloadCardHtml(LETTER);
+    const phone = regla(hojaPrincipal(await readBlob(saved.blob as Blob)), '\n.phone {');
+
+    // dvh DESPUÉS de vh, nunca en su lugar: quien no lo entienda se queda con la primera
+    expect(phone).toContain('height: 100vh;');
+    expect(phone.indexOf('height: 100dvh;')).toBeGreaterThan(phone.indexOf('height: 100vh;'));
   });
 
-  it('el gatillo del toque vive en el DOM normal, no dentro del <noscript>', async () => {
+  it('el cuerpo y el escenario también', async () => {
     await downloadCardHtml(LETTER);
-    const html = await readBlob(saved.blob as Blob);
+    const hoja = hojaPrincipal(await readBlob(saved.blob as Blob));
 
-    /*
-     * El combinador ~ solo alcanza HERMANOS POSTERIORES: metido dentro del
-     * <noscript> no llegaría ni al sobre. Va de primer hijo de la pantalla, y
-     * es el CSS quien lo apaga —`.css-trigger { display: none }`— siempre que
-     * el guión sí corra.
-     */
-    const pantalla = html.indexOf('class="phone__screen"');
-    const casilla = html.indexOf('id="css-open-card"');
-    expect(casilla).toBeGreaterThan(pantalla);
-    expect(casilla).toBeLessThan(html.indexOf('class="envelope"'));
-    expect(html).toContain('<label for="css-open-card"');
-    expect(html).toContain('.css-trigger { display: none; }');
+    for (const selector of ['\nbody {', '\n.stage {']) {
+      const cuerpo = regla(hoja, selector);
+      expect(cuerpo).toContain('min-height: 100vh;');
+      expect(cuerpo.indexOf('min-height: 100dvh;')).toBeGreaterThan(cuerpo.indexOf('min-height: 100vh;'));
+    }
   });
 
-  it('sin JavaScript la coreografía la lleva el CSS, y la dispara el toque', async () => {
+  it('y el teléfono de escritorio, que tiene su propia medida', async () => {
     await downloadCardHtml(LETTER);
-    const html = await readBlob(saved.blob as Blob);
-    const bloque = html.slice(html.indexOf('<noscript><style>'), html.indexOf('</style></noscript>'));
+    const hoja = hojaPrincipal(await readBlob(saved.blob as Blob));
 
-    // Tocar el sobre abre la solapa y lo aparta: eso es lo que se siente
-    expect(bloque).toContain('#css-open-card:checked ~ .envelope .envelope__flap { transform: rotateX(');
-    expect(bloque).toContain('#css-open-card:checked ~ .envelope { animation: nsSalir');
-    // La floración se desplaza entera para empezar cuando el sobre se va
-    expect(bloque).toMatch(
-      /#css-open-card:checked ~ \.bloom-scene \.bloom-stem\s+\{ animation-delay: calc\(var\(--d\) \+ 620ms\); \}/,
-    );
-    // El estallido lleva su retraso en línea: solo !important lo gana
-    expect(bloque).toMatch(/\.bloom \{ animation: flowerBloom[^}]*!important/);
-    expect(bloque).toContain('#css-open-card:checked ~ .blooms .bloom { animation-delay: 3320ms !important; }');
-    expect(bloque).toContain('.card { pointer-events: auto; animation: nsEntrar');
-    expect(bloque).toContain('#css-open-card:checked ~ .card { animation-delay: 4820ms; }');
+    expect(hoja).toContain('max-height: 92vh;');
+    expect(hoja.indexOf('max-height: 92dvh;')).toBeGreaterThan(hoja.indexOf('max-height: 92vh;'));
   });
 
-  it('y si el visor no dejara tocar, se abre sola a los 8 s', async () => {
+  it('el visor de fotos ampliadas, donde la foto se salía por abajo', async () => {
     await downloadCardHtml(LETTER);
-    const html = await readBlob(saved.blob as Blob);
-    const bloque = html.slice(html.indexOf('<noscript><style>'), html.indexOf('</style></noscript>'));
+    const hoja = hojaPrincipal(await readBlob(saved.blob as Blob));
+
+    for (const medida of [75, 55]) {
+      expect(hoja).toContain(`max-height: ${medida}vh;`);
+      expect(hoja.indexOf(`max-height: ${medida}dvh;`)).toBeGreaterThan(hoja.indexOf(`max-height: ${medida}vh;`));
+    }
+  });
+
+  it('ninguna ALTURA en vh se queda huérfana', async () => {
+    await downloadCardHtml(LETTER);
+    const hoja = hojaPrincipal(await readBlob(saved.blob as Blob));
 
     /*
-     * No se puede comprobar desde aquí si el Quick Look de iOS deja marcar una
-     * casilla. Si no dejara, sin esta red volveríamos exactamente al sobre que
-     * no responde, que es de donde veníamos: cada paso lleva su retraso largo,
-     * y el toque no hace otra cosa que adelantarlos.
+     * La red que cubre lo que venga después. Solo las alturas: `top: 5vh` del
+     * rótulo del escenario es una posición, no una medida que decida si el
+     * contenido cabe, y además solo existe en escritorio.
      */
-    expect(bloque).toContain('.envelope { animation: nsSalir 600ms ease 8000ms forwards; }');
-    expect(bloque).toContain('calc(var(--d) + 8000ms)');
-    expect(bloque).toMatch(/\.bloom \{ animation: flowerBloom[^}]*10700ms/);
-    expect(bloque).toMatch(/\.card \{ pointer-events: auto; animation: nsEntrar[^}]*12200ms/);
+    const alturas = [...hoja.matchAll(/((?:min-|max-)?height): (\d+)vh;/g)];
+    expect(alturas.length).toBeGreaterThan(0);
 
-    /*
-     * Y la capa que recibe el toque se aparta al arrancar: cubre la pantalla
-     * entera y no es hija del texto que se desplaza, asi que quedarse puesta
-     * era una carta que llega y no se deja leer hasta el final.
-     */
-    expect(bloque).toContain('.css-trigger__hit { animation: nsGatilloFuera 1ms linear 8000ms forwards; }');
-    expect(bloque).toContain('@keyframes nsGatilloFuera { to { transform: translateY(-200%); } }');
+    for (const altura of alturas) {
+      const fin = (altura.index ?? 0) + altura[0].length;
+      expect(hoja.slice(fin, fin + 80)).toContain(`${altura[1]}: ${altura[2]}dvh;`);
+    }
   });
 });
