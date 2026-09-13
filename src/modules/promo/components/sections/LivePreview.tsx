@@ -1,11 +1,34 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AnimatedBackground } from '../../../editor/components/AnimatedBackground';
 import { Ornament, CornerFlourish, HeartConfetti, PhotoFrame, Rose } from '../../../../components/decor';
 import { YouTubeFacade } from '../../../../components/media/YouTubeFacade';
 import { DEMO_SONG, LANDING_VIDEOS } from '../../../../config/videos';
 import { EmotionGrid } from './EmotionGrid';
+import { useConsent } from '../../../../hooks/useConsent';
+import { useSeenOnce } from '../../../../hooks/useSeenOnce';
+import { trackViewContent } from '../../../../utils/pixel';
 
 export const LivePreview: React.FC = () => {
+  /*
+   * El interés en el producto, para Meta.
+   *
+   * No al montar: esta sección vive en la portada, así que montar es cargar la
+   * página y el evento no diría nada que no diga ya el PageView. Se manda
+   * cuando la sección llega de verdad a la pantalla, que es cuando la persona
+   * ve lo que se vende. `trackViewContent` se encarga de que sea una sola vez.
+   *
+   * Depende también del consentimiento: quien baja hasta aquí antes de aceptar
+   * las cookies no manda nada, y al aceptar el efecto vuelve a correr y el
+   * evento sale entonces. Sin esa dependencia se perdería sin dejar rastro.
+   */
+  const section = useRef<HTMLElement>(null);
+  const seen = useSeenOnce(section);
+  const consent = useConsent();
+
+  useEffect(() => {
+    if (seen && consent === 'granted') trackViewContent();
+  }, [seen, consent]);
+
   const [liveName, setLiveName] = useState('');
   const [liveMessage, setLiveMessage] = useState('');
   const [theme, setTheme] = useState<'tema1' | 'tema2'>('tema1');
@@ -17,7 +40,11 @@ export const LivePreview: React.FC = () => {
   const [mobileTab, setMobileTab] = useState<'edit' | 'preview'>('edit');
 
   return (
-    <section className="py-14 md:py-section-gap relative overflow-hidden scroll-mt-32" id="preview">
+    <section
+      ref={section}
+      className="py-14 md:py-section-gap relative overflow-hidden scroll-mt-32"
+      id="preview"
+    >
       <div 
         className="absolute inset-0 opacity-[0.03] pointer-events-none" 
         style={{ backgroundImage: 'radial-gradient(#b90538 1px, transparent 1px)', backgroundSize: '24px 24px' }} 

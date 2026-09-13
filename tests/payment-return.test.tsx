@@ -8,6 +8,7 @@ import {
   type PurchaseResponse,
   type PurchaseVerification,
 } from '../src/modules/promo/services/checkout';
+import { trackPurchase } from '../src/utils/pixel';
 import { setupUser } from './testUtils';
 
 /**
@@ -22,6 +23,14 @@ vi.mock('../src/modules/promo/services/checkout', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/modules/promo/services/checkout')>()),
   verifyPurchase: vi.fn(),
 }));
+
+/*
+ * El píxel de Meta se espía entero. Lo que se vigila aquí no es que el evento
+ * salga bien formado —eso es de `pixel.test.ts`— sino CUÁNDO sale: declarar una
+ * venta que el servidor no ha confirmado es dinero falso en el panel de
+ * anuncios, y encima entrena a la campaña con él.
+ */
+vi.mock('../src/utils/pixel', () => ({ trackPurchase: vi.fn() }));
 
 const PURCHASE_ID = 'pur_abc';
 const PAYMENT_ID = '1234567890';
@@ -76,6 +85,10 @@ describe('PaymentReturnPage', () => {
     expect(verifyPurchase).toHaveBeenCalledWith(PURCHASE_ID, PAYMENT_ID);
     // La referencia ya cumplió: dejarla puesta invita a reutilizarla.
     expect(window.sessionStorage.getItem('checkout:purchaseId')).toBeNull();
+    // Y la venta se declara con la referencia que deduplica contra el servidor.
+    expect(trackPurchase).toHaveBeenCalledWith(
+      expect.objectContaining({ externalReference: 'ref-abc', amountCents: 1990000 }),
+    );
   });
 
   it('recupera la compra del parámetro cuando la pestaña no la recuerda', async () => {
@@ -113,6 +126,8 @@ describe('PaymentReturnPage', () => {
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toContain('aún no acredita tu pago');
     expect(screen.queryByText(/^EDITOR:/)).toBeNull();
+    // Un pago pendiente todavía no es una venta.
+    expect(trackPurchase).not.toHaveBeenCalled();
   });
 
   it('pago rechazado: no abre el editor aunque la URL diga que sí', async () => {
@@ -125,6 +140,12 @@ describe('PaymentReturnPage', () => {
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toContain('no quedó aprobado');
     expect(screen.queryByText(/^EDITOR:/)).toBeNull();
+    /*
+     * Y tampoco se le cuenta a Meta. Este es el caso que decide el asunto: la
+     * URL trae `status=approved` y aun así no hubo venta, porque quien manda es
+     * la respuesta del servidor y no lo que se pueda escribir en la barra.
+     */
+    expect(trackPurchase).not.toHaveBeenCalled();
   });
 
   it('si la verificación falla, se puede volver a comprobar', async () => {

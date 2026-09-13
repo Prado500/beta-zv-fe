@@ -1,4 +1,5 @@
 import { apiPost } from '../../../utils/api';
+import { pixelCookies } from '../../../utils/pixel';
 
 /**
  * Compra: intención de pago y verificación.
@@ -41,9 +42,32 @@ export interface PurchaseVerification {
 export const newIdempotencyKey = (): string =>
   `web-${(crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`).replace(/[^A-Za-z0-9]/g, '').slice(0, 40)}`;
 
-/** Crea la intención de compra. Responde 401 si la sesión no existe o caducó. */
+/**
+ * ¿El backend acepta ya las cookies del píxel al crear la compra?
+ *
+ * Hoy **no**: `PurchaseCreate` hereda `extra="forbid"`, así que mandar `fbp` o
+ * `fbc` devuelve 422 y deja a todo el mundo sin poder pagar. Esta bandera se
+ * pone en `true` en el mismo despliegue en que el backend añada los dos campos
+ * —opcionales, por defecto cadena vacía— a ese esquema.
+ *
+ * Se queda a la vista y con nombre propio porque el fallo, de olvidarse, no se
+ * parece en nada a su causa: un 422 al pulsar "pagar".
+ */
+export const BACKEND_ACCEPTS_PIXEL_COOKIES = false;
+
+/**
+ * Crea la intención de compra. Responde 401 si la sesión no existe o caducó.
+ *
+ * Con la bandera puesta viaja también el par `_fbp`/`_fbc` del navegador: son
+ * lo que necesita el servidor para mandar la venta por la API de conversiones
+ * y que Meta la pueda atribuir. `fbc` va vacío cuando la visita no vino de un
+ * anuncio, que es lo normal.
+ */
 export const createPurchase = (idempotencyKey: string): Promise<PurchaseResponse> =>
-  apiPost<PurchaseResponse>('/api/v1/purchases', { idempotencyKey });
+  apiPost<PurchaseResponse>('/api/v1/purchases', {
+    idempotencyKey,
+    ...(BACKEND_ACCEPTS_PIXEL_COOKIES ? pixelCookies() : {}),
+  });
 
 /**
  * Confirma el pago contra el proveedor. `paymentId` es lo único que aporta el
