@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { ApiError } from '../../../utils/api';
 import { describeError } from '../../../utils/apiErrors';
 import { redirectTo } from '../../../utils/navigation';
+import { trackInitiateCheckout } from '../../../utils/pixel';
 import { email, personName } from '../../../utils/validation';
 import { useSignOut } from '../../auth/hooks/useSignOut';
 import { WRONG_CREDENTIALS } from '../../auth/hooks/useLogin';
@@ -195,6 +196,9 @@ const DEFAULTS: CheckoutInput = {
   acceptsTerms: false,
 };
 
+/** Lo que se espera a que salga el evento de Meta antes de abandonar la SPA. */
+const PIXEL_GRACE_MS = 250;
+
 const modeOf = (step: CheckoutStep): CheckoutMode => (step === 'login' ? 'login' : 'register');
 
 export interface CheckoutOptions {
@@ -308,6 +312,19 @@ export const useCheckoutFlow = ({ intent, onSignedIn }: CheckoutOptions) => {
       // perdido todo su estado y este identificador es lo único que queda.
       rememberPurchaseId(purchase.id);
       setStatus('redirecting');
+
+      /*
+       * El aviso a Meta, con la compra ya creada: de ahí salen el importe real
+       * y la `externalReference` que deduplica contra el evento del servidor.
+       *
+       * Y un respiro antes de irse. El píxel sale por la red igual que
+       * cualquier otra petición, y cambiar `location` en el mismo tick cancela
+       * lo que aún no ha salido: sin esta pausa se perderían justo los eventos
+       * de quien sí va a pagar. Es imperceptible al lado de cargar la pasarela.
+       */
+      trackInitiateCheckout(purchase);
+      await new Promise((resume) => setTimeout(resume, PIXEL_GRACE_MS));
+
       redirectTo(purchase.checkoutUrl);
     } catch (problem) {
       if (problem instanceof ApiError && problem.status === 401) {

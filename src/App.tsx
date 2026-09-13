@@ -1,4 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { CookieBanner } from './components/ui/CookieBanner';
+import { usePixelPageViews } from './hooks/usePixelPageViews';
 import { AuthProvider } from './modules/auth/AuthProvider';
 import LandingPage from './modules/promo/page/LandingPage';
 import EditorPage from './modules/editor/page/EditorPage';
@@ -6,9 +8,20 @@ import CardViewerPage from './modules/viewer/page/CardViewerPage';
 import PaymentReturnPage from './modules/promo/page/PaymentReturnPage';
 import MyDedicationsPage from './modules/dedications/page/MyDedicationsPage';
 
+/**
+ * El pixel de Meta, que necesita estar dentro del Router para saber la ruta.
+ * No pinta nada, y no carga nada mientras no haya identificador configurado Y
+ * consentimiento expreso en el banner de cookies.
+ */
+const PixelPageViews = () => {
+  usePixelPageViews();
+  return null;
+};
+
 export default function App() {
   return (
     <Router>
+      <PixelPageViews />
       {/*
         La sesión se conoce en un solo sitio. La cookie es `HttpOnly`, así que
         el proveedor pregunta a `/me` —solo si hay pista de un inicio previo— y
@@ -40,6 +53,12 @@ export default function App() {
           <Route path="/c/:slug" element={<CardViewerPage />} />
         </Routes>
       </AuthProvider>
+      {/*
+        El aviso de cookies, por encima de todo y fuera de las rutas: la
+        decisión es de la visita entera, no de una pantalla. Se pinta solo
+        mientras no se haya decidido nada.
+      */}
+      <CookieBanner />
     </Router>
   );
 }

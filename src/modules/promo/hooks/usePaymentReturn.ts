@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { describeError } from '../../../utils/apiErrors';
+import { trackPurchase } from '../../../utils/pixel';
 import { verifyPurchase } from '../services/checkout';
 import { forgetPurchaseId, recallPurchaseId } from '../services/purchaseSession';
 
@@ -73,6 +74,14 @@ export const usePaymentReturn = (): PaymentReturn => {
         const result = await verifyPurchase(purchaseId, paymentId);
 
         if (result.purchase.status === 'paid') {
+          /*
+           * La venta, a Meta. Aquí y no antes: el `status=approved` que trae la
+           * URL de Mercado Pago lo puede escribir cualquiera a mano, y con él
+           * se declararían ventas que no existen —que además entrenan a la
+           * campaña con datos falsos. Esta rama es la única que ha visto al
+           * servidor decir que está pagada.
+           */
+          trackPurchase(result.purchase);
           // La referencia ya cumplió su función; dejarla puesta invita a reusarla.
           forgetPurchaseId();
           // El editor necesita saber qué compra habilita su carta. Va en el estado
