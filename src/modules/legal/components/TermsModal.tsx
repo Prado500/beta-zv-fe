@@ -2,6 +2,7 @@ import React from 'react';
 import { ModalShell } from '../../../components/ui/ModalShell';
 import { Ornament } from '../../../components/decor';
 import type { Terms } from '../services/legal';
+import { LegalMarkdown } from './LegalMarkdown';
 
 /**
  * Los Términos, encima del modal de compra y sin navegar a ningún sitio.
@@ -11,58 +12,17 @@ import type { Terms } from '../services/legal';
  * verdad importa— la clave de idempotencia de la compra no se regenera. Mandar a la
  * persona a otra página, aunque volviera, crearía una compra distinta.
  *
- * El texto llega en Markdown y se pinta con un renderizador mínimo: solo títulos,
- * negritas, listas y párrafos, que es todo lo que el documento usa. Añadir una
- * librería de Markdown por cuatro etiquetas sería pagar un bundle entero por nada.
+ * El texto llega en Markdown y se pinta con `LegalMarkdown`, el mismo
+ * renderizador mínimo que usan las páginas `/terminos` y `/privacidad`. Añadir
+ * una librería de Markdown por cuatro etiquetas sería pagar un bundle entero
+ * por nada, y tener dos renderizadores haría que el texto que se acepta aquí
+ * no se viera igual que el publicado.
  */
 
 interface TermsModalProps {
   terms: Terms;
   onClose: () => void;
 }
-
-/** Trocea el Markdown en bloques ya listos para pintar. */
-const blocksOf = (markdown: string) =>
-  markdown
-    .split('\n\n')
-    .map((block) => block.trim())
-    .filter(Boolean);
-
-const bold = (text: string) =>
-  text.split(/\*\*(.+?)\*\*/g).map((piece, index) =>
-    index % 2 === 1 ? (
-      <strong key={index} className="font-semibold text-wine-deep">
-        {piece}
-      </strong>
-    ) : (
-      <React.Fragment key={index}>{piece}</React.Fragment>
-    ),
-  );
-
-const Block: React.FC<{ text: string }> = ({ text }) => {
-  if (text.startsWith('## ')) {
-    return (
-      <h3 className="font-headline-md text-base font-bold text-wine mt-5 mb-1.5">
-        {text.slice(3)}
-      </h3>
-    );
-  }
-  if (text.startsWith('# ')) {
-    return (
-      <h2 className="font-headline-md text-lg font-bold text-wine-deep mb-2">{text.slice(2)}</h2>
-    );
-  }
-  if (text.startsWith('- ')) {
-    return (
-      <ul className="list-disc pl-5 space-y-1 my-2">
-        {text.split('\n').map((line, index) => (
-          <li key={index}>{bold(line.replace(/^-\s*/, ''))}</li>
-        ))}
-      </ul>
-    );
-  }
-  return <p className="my-2 leading-relaxed">{bold(text)}</p>;
-};
 
 export const TermsModal: React.FC<TermsModalProps> = ({ terms, onClose }) => (
   <ModalShell labelledBy="terms-title" onClose={onClose} size="lg" layer="over">
@@ -82,9 +42,7 @@ export const TermsModal: React.FC<TermsModalProps> = ({ terms, onClose }) => (
       hasta sacar el botón de cerrar fuera de la pantalla en un móvil.
     */}
     <div className="max-h-[55vh] overflow-y-auto pr-2 text-sm text-on-surface-variant">
-      {blocksOf(terms.content).map((block, index) => (
-        <Block key={index} text={block} />
-      ))}
+      <LegalMarkdown markdown={terms.content} compact />
     </div>
 
     <button
