@@ -127,9 +127,21 @@ interface LegalMarkdownProps {
   compact?: boolean;
 }
 
+/**
+ * Finales de línea, normalizados antes de trocear.
+ *
+ * El texto llega de dos sitios y ninguno garantiza el mismo final de línea: los
+ * `.md` del repo los convierte a CRLF el checkout en Windows, y el documento
+ * que sirve el backend viene como lo guardaran. Los bloques se separan por una
+ * línea en blanco, así que con `\r\n` no había ninguna que encontrar: el
+ * documento entero salía como un solo título, con el índice apuntando a anclas
+ * que no existían. En el agente de Linux, con LF, no se veía.
+ */
+const normalizeNewlines = (text: string): string => text.replace(/\r\n?/g, '\n');
+
 export const LegalMarkdown: React.FC<LegalMarkdownProps> = ({ markdown, compact = false }) => (
   <>
-    {markdown
+    {normalizeNewlines(markdown)
       .split('\n\n')
       .map((block) => block.trim())
       .filter(Boolean)

@@ -5,6 +5,7 @@ import TermsPage from '../src/modules/legal/page/TermsPage';
 import PrivacyPage from '../src/modules/legal/page/PrivacyPage';
 import { LEGAL_ROUTES } from '../src/modules/legal/legalRoutes';
 import { parseLegalDocument } from '../src/modules/legal/legalDocument';
+import { LegalMarkdown } from '../src/modules/legal/components/LegalMarkdown';
 import terms from '../src/modules/legal/content/terminos-y-condiciones.md?raw';
 import privacy from '../src/modules/legal/content/politica-de-privacidad.md?raw';
 
@@ -91,5 +92,39 @@ describe('páginas legales', () => {
       const headings = [...markdown.matchAll(/^##\s+\d.*$/gm)].length;
       expect(doc.sections).toHaveLength(headings);
     }
+  });
+});
+
+/**
+ * El troceo en bloques, frente a finales de línea de Windows.
+ *
+ * El documento se parte por líneas en blanco. Con `\r\n` no hay ninguna que
+ * encontrar: el texto entero se pintaba como un único título y el índice
+ * quedaba apuntando a anclas inexistentes. Solo se veía en Windows —el agente
+ * de Linux descarga LF—, que es la peor forma de fallar: rojo en la máquina de
+ * quien programa, verde en la integración.
+ */
+describe('finales de línea del documento legal', () => {
+  const DOC = ['## 1. Primera', 'Un párrafo.', '## 2. Segunda', 'Otro párrafo.'];
+
+  it.each([
+    ['Unix (LF)', '\n\n'],
+    ['Windows (CRLF)', '\r\n\r\n'],
+    ['Mac clásico (CR)', '\r\r'],
+  ])('con finales de %s, cada apartado es su propio título', (_nombre, salto) => {
+    const { container } = render(<LegalMarkdown markdown={DOC.join(salto)} />);
+
+    const titulos = Array.from(container.querySelectorAll('h2'));
+    expect(titulos.map((h) => h.id)).toEqual(['1-primera', '2-segunda']);
+    expect(titulos.map((h) => h.textContent)).toEqual(['1. Primera', '2. Segunda']);
+  });
+
+  it('los párrafos no se cuelan dentro del título que los precede', () => {
+    const { container } = render(<LegalMarkdown markdown={DOC.join('\r\n\r\n')} />);
+
+    // El síntoma de la avería era exactamente este: un solo h2 con todo dentro
+    expect(container.querySelectorAll('h2')).toHaveLength(2);
+    expect(container.querySelectorAll('p')).toHaveLength(2);
+    expect(container.querySelector('h2')?.textContent).not.toContain('párrafo');
   });
 });
