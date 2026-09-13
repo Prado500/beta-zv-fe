@@ -32,7 +32,8 @@ const isConsent = (value: string | null): value is Consent =>
  */
 let sessionDecision: Consent | null = null;
 
-type Listener = (consent: Consent) => void;
+/** `null` es la vuelta al principio: alguien pidió volver a decidir. */
+type Listener = (consent: Consent | null) => void;
 
 const listeners = new Set<Listener>();
 
@@ -60,6 +61,32 @@ export const writeConsent = (value: Consent): void => {
 
   // Copia de la lista: un oyente puede darse de baja dentro de su propio aviso.
   for (const listener of [...listeners]) listener(value);
+};
+
+/**
+ * Borra lo decidido y vuelve a preguntar.
+ *
+ * Sin esto la primera respuesta era para siempre: el aviso solo se enseña
+ * mientras no haya nada guardado, así que quien rechazaba —o aceptaba— no tenía
+ * ninguna vía de vuelta. La Política de Privacidad promete que se puede
+ * «aceptar, rechazar o modificar preferencias»; esta es la parte de "modificar".
+ *
+ * Lo que se corta es el envío: la verja de `utils/metaPixel` pregunta antes de
+ * cada cosa que hace, así que desde aquí no sale ningún evento más. El script
+ * que ya se descargó sigue cargado hasta la próxima carga de la página, y lo
+ * que Meta recibió antes de revocar no vuelve atrás.
+ */
+export const clearConsent = (): void => {
+  if (typeof window === 'undefined') return;
+
+  sessionDecision = null;
+  try {
+    window.localStorage.removeItem(KEY);
+  } catch {
+    /* Sin almacenamiento basta con la copia de la sesión */
+  }
+
+  for (const listener of [...listeners]) listener(null);
 };
 
 /** Se suscribe a la decisión. Devuelve la baja, para el `useEffect`. */
