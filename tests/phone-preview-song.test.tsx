@@ -6,9 +6,10 @@ import type { DedicationForm } from '../src/modules/editor/types';
 import { installYouTubeMock, type YouTubeMock } from './youtubeMock';
 
 /**
- * El muro de interacción: tocar el sobre, ver la coreografía y que la canción
- * arranque sola cuando la hoja ya se ve. Y el chip flotante cuando el
- * reproductor queda arriba, fuera de la vista.
+ * El muro de interacción: tocar el sobre hace sonar la canción en el acto, y
+ * el efecto de la hoja reintenta por si el navegador rechazó ese primer
+ * intento. Y el chip flotante cuando el reproductor queda arriba, fuera de la
+ * vista.
  *
  * Los toques van con `fireEvent`: con el reloj congelado, `userEvent` espera
  * temporizadores que nunca avanzan.
@@ -94,19 +95,23 @@ describe('PhonePreview: la canción', () => {
     expect(yt.last().playVideo).not.toHaveBeenCalled();
   });
 
-  it('tocar el sobre, esperar la coreografía y la hoja: entonces suena', async () => {
+  it('la canción arranca con el toque, y el efecto de la hoja reintenta', async () => {
     await renderCard();
     const player = yt.last();
     vi.useFakeTimers();
 
     tapEnvelope();
-    act(() => vi.advanceTimersByTime(TO_CARD_MS));
-    expect(player.playVideo).not.toHaveBeenCalled();
-
-    act(() => vi.advanceTimersByTime(SONG_START_MS - 1));
-    expect(player.playVideo).not.toHaveBeenCalled();
-    act(() => vi.advanceTimersByTime(1));
+    // Sin adelantar un solo temporizador: la orden sale del propio gesto
     expect(player.playVideo).toHaveBeenCalledTimes(1);
+
+    /*
+     * Segundo intento, ya con la hoja a la vista: cubre el caso en que YouTube
+     * rechazara el primero por visibilidad, con el reproductor todavía al
+     * final de la carta. Sobre algo que ya suena, `playVideo()` no hace nada.
+     */
+    act(() => vi.advanceTimersByTime(TO_CARD_MS));
+    act(() => vi.advanceTimersByTime(SONG_START_MS));
+    expect(player.playVideo).toHaveBeenCalledTimes(2);
   });
 
   it('cerrar la carta pausa la canción y vuelve al sobre', async () => {
@@ -162,12 +167,16 @@ describe('PhonePreview: la canción', () => {
     screen.getByLabelText('Canción de la dedicatoria').scrollIntoView = scrollIntoView;
 
     openCard();
-    expect(player.playVideo).toHaveBeenCalledTimes(1);
     act(() => vi.advanceTimersByTime(1500));
     playerOutOfView(true);
 
+    /*
+     * Cuántos intentos hubo da igual y cambiará: lo que se fija es que el chip
+     * NO añade uno más. Clavar el número aquí es lo que hizo frágil la prueba.
+     */
+    const intentosPrevios = player.playVideo.mock.calls.length;
     fireEvent.click(screen.getByRole('button', { name: 'Ir a la canción' }));
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
-    expect(player.playVideo).toHaveBeenCalledTimes(1);
+    expect(player.playVideo).toHaveBeenCalledTimes(intentosPrevios);
   });
 });
