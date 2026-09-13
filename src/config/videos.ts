@@ -6,8 +6,8 @@
  * "An error occurred" en todos. Con un solo archivo, cambiar un vídeo es
  * cambiar una línea, y un ID inválido no puede quedarse escondido en un JSX.
  *
- * Mientras llegan los vídeos definitivos, todos apuntan a un vídeo real y
- * embebible. Cuidado al probar: los vídeos musicales con licencia de sello
+ * Ya están los definitivos salvo la tercera reacción, que sigue con el de
+ * respaldo hasta que se grabe. Cuidado al probar: los vídeos musicales con licencia de sello
  * devuelven error 150 si la página se sirve desde una IP (127.0.0.1 o la IP de
  * la LAN); desde `localhost` o el dominio real reproducen.
  */
@@ -16,24 +16,27 @@
 export const DEFAULT_VIDEO_ID = '2Vv-BfVoq4g';
 
 export const LANDING_VIDEOS = {
-  /** Hero: el gancho dentro del teléfono. */
-  hook: DEFAULT_VIDEO_ID,
-  /** Sección "Origen". */
-  origin: DEFAULT_VIDEO_ID,
-  /** Demostración sobre el editor en vivo. */
-  demo: DEFAULT_VIDEO_ID,
-  /** Reacciones en grupo, en la prueba social. */
-  validation: DEFAULT_VIDEO_ID,
-  /** Sección de características. */
-  features: DEFAULT_VIDEO_ID,
-  /** Cierre junto al precio. */
-  closing: DEFAULT_VIDEO_ID,
+  /** Vídeo 1 - Hero: el gancho dentro del teléfono. */
+  hook: 'xUKoisOLr-A',
+  /** Vídeo 2 - Sección "Origen". */
+  origin: 'wAqowOnCbmo',
+  /** Vídeo 3 - Demostración sobre el editor en vivo. */
+  demo: 'yad4fEkE988',
+  /** Vídeo 4 - Reacciones en grupo, en la prueba social. */
+  validation: 'Vqk8Zylyfxc',
+  /** Vídeo 5 - Sección de características. */
+  features: 'B8sgIHmuBYc',
+  /** Vídeo 6 - Cierre junto al precio. */
+  closing: 'RF9ULRocwPY',
 } as const;
 
-/** Una reacción por testimonio, por su `id`. */
+/** Una reacción por testimonio, por su `id`. Son los cortos de Instagram. */
 export const REACTION_VIDEOS = {
-  qa: DEFAULT_VIDEO_ID,
-  andrea: DEFAULT_VIDEO_ID,
+  /** Reacción 1 */
+  qa: '6LeeDI5H1BI',
+  /** Reacción 2 */
+  andrea: 'd79INXy2POU',
+  /** Reacción 3: pendiente de grabar. Hasta entonces, el de respaldo. */
   sofia: DEFAULT_VIDEO_ID,
 } as const;
 

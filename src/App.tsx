@@ -1,11 +1,15 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { MetaPixel } from './components/analytics/MetaPixel';
+import { CookieBanner } from './components/ui/CookieBanner';
 import { AuthProvider } from './modules/auth/AuthProvider';
 import LandingPage from './modules/promo/page/LandingPage';
 import EditorPage from './modules/editor/page/EditorPage';
 import CardViewerPage from './modules/viewer/page/CardViewerPage';
 import PaymentReturnPage from './modules/promo/page/PaymentReturnPage';
 import MyDedicationsPage from './modules/dedications/page/MyDedicationsPage';
+import TermsPage from './modules/legal/page/TermsPage';
+import PrivacyPage from './modules/legal/page/PrivacyPage';
+import { LEGAL_ROUTES } from './modules/legal/legalRoutes';
 
 export default function App() {
   return (
@@ -13,7 +17,8 @@ export default function App() {
       {/*
         Meta Pixel. Va aquí dentro, y no en `index.html`, porque en una SPA el
         documento se carga una sola vez: es el router quien sabe que el usuario
-        cambió de pantalla. No pinta nada.
+        cambió de pantalla. No pinta nada, y no carga nada mientras no haya
+        consentimiento expreso en el aviso de cookies.
       */}
       <MetaPixel />
       {/*
@@ -43,10 +48,24 @@ export default function App() {
             correo y codifica en el QR (`FRONTEND_URL/carta/<slug>`); `/c/:slug` se
             mantiene para no romper enlaces antiguos.
           */}
+          {/*
+            Textos legales publicados. Van fuera del embudo a propósito: el
+            modal de compra sigue mostrando el suyo sin desmontar la compra, y
+            estas rutas son las que se enlazan desde el pie y el aviso de
+            cookies, donde no hay ninguna compra en curso que proteger.
+          */}
+          <Route path={LEGAL_ROUTES.terms} element={<TermsPage />} />
+          <Route path={LEGAL_ROUTES.privacy} element={<PrivacyPage />} />
           <Route path="/carta/:slug" element={<CardViewerPage />} />
           <Route path="/c/:slug" element={<CardViewerPage />} />
         </Routes>
       </AuthProvider>
+      {/*
+        El aviso de cookies, por encima de todo y fuera de las rutas: la
+        decisión es de la visita entera, no de una pantalla. Se pinta solo
+        mientras no se haya decidido nada.
+      */}
+      <CookieBanner />
     </Router>
   );
 }
