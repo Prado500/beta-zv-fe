@@ -18,16 +18,16 @@
   </head>
   <body>
     <!--
-      Meta Pixel sin JavaScript. Es la única parte del Pixel que vive en el HTML,
-      porque es la única que no puede vivir en React: si el navegador no ejecuta
-      scripts, la app no se monta. El resto (init, PageView y navegación interna)
-      está en src/components/analytics/MetaPixel.tsx, y el identificador se
-      configura en src/config/analytics.ts (VITE_META_PIXEL_ID).
+      Aquí NO va el píxel de Meta sin JavaScript.
+
+      Estuvo: una imagen de 1x1 a facebook.com/tr. Mide a quien tiene los
+      scripts apagados, pero se dispara al pintar el HTML, antes de que nadie
+      haya podido aceptar nada, y no hay forma de condicionarla desde React.
+      Con el consentimiento como requisito, eso es justo lo que no puede pasar.
+
+      Si algún día hace falta medir sin scripts, la pieza tendría que salir del
+      propio banner de cookies y no del documento.
     -->
-    <noscript>
-      <img height="1" width="1" style="display:none" alt=""
-        src="https://www.facebook.com/tr?id=4659139844407745&amp;ev=PageView&amp;noscript=1" />
-    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

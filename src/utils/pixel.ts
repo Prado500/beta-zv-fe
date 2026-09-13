@@ -1,3 +1,4 @@
+import { META_PIXEL_ID } from '../config/analytics';
 import { hasConsent } from './consent';
 import { getCookie } from './cookies';
 
@@ -26,32 +27,23 @@ import { getCookie } from './cookies';
  * veces y el coste por conversión que se ve en el panel es mentira.
  */
 
-/** Firma de la cola que deja el fragmento oficial de Meta. */
-type FbqCall = (...args: unknown[]) => void;
-
-interface Fbq extends FbqCall {
-  callMethod?: FbqCall;
-  queue: unknown[][];
-  push: Fbq;
-  loaded: boolean;
-  version: string;
-}
-
-declare global {
-  interface Window {
-    fbq?: Fbq;
-    _fbq?: Fbq;
-  }
-}
+/*
+ * El tipo de `fbq` vive en `types/meta-pixel.d.ts`, global y único. Estuvo un
+ * tiempo declarado aquí además de allí y el proyecto dejó de compilar
+ * (TS2717): la misma propiedad de `Window` no puede tener dos tipos.
+ */
 
 const SCRIPT_ID = 'meta-pixel';
 const SRC = 'https://connect.facebook.net/en_US/fbevents.js';
 
 /**
- * Identificador del píxel. Sin él el módulo entero calla: en local no hay
- * ninguno definido y no se carga nada, que es lo que se busca.
+ * Identificador del píxel, de `config/analytics`.
+ *
+ * Se lee de allí y no de `import.meta.env` para que haya un solo sitio donde
+ * mirar: ese módulo ya resuelve el valor por defecto de producción —así Azure
+ * despliega sin tocar el Variable Group— y deja apagarlo con la variable vacía.
  */
-export const PIXEL_ID: string = import.meta.env.VITE_META_PIXEL_ID ?? '';
+export const PIXEL_ID: string = META_PIXEL_ID;
 
 /** El producto, con el mismo nombre e identificador en los tres eventos. */
 const PRODUCT = {
@@ -70,14 +62,20 @@ let initialised = false;
 const usable = (): boolean =>
   typeof window !== 'undefined' && PIXEL_ID.length > 0 && hasConsent();
 
-/** Deja lista la cola `fbq` antes de que el script llegue. */
+/**
+ * Deja lista la cola `fbq` antes de que el script llegue.
+ *
+ * Acepta llamadas desde el primer milisegundo y las guarda en `queue`; cuando
+ * `fbevents.js` carga, instala `callMethod` y la vacía. Sin ella, un evento
+ * disparado durante la carga se perdería.
+ */
 const ensureQueue = (): void => {
   if (window.fbq) return;
 
-  const fbq = function (this: unknown, ...args: unknown[]) {
-    if (fbq.callMethod) fbq.callMethod.apply(this, args);
-    else fbq.queue.push(args);
-  } as Fbq;
+  const fbq = ((...args: unknown[]): void => {
+    if (fbq.callMethod) fbq.callMethod(...args);
+    else fbq.queue?.push(args);
+  }) as MetaPixelFbq;
 
   fbq.push = fbq;
   fbq.loaded = true;
@@ -85,7 +83,7 @@ const ensureQueue = (): void => {
   fbq.queue = [];
 
   window.fbq = fbq;
-  window._fbq = fbq;
+  window._fbq ??= fbq;
 };
 
 /**
@@ -96,7 +94,14 @@ const ensureQueue = (): void => {
  * medir y medir sin permiso.
  */
 export const initPixel = (): void => {
-  if (initialised || !usable()) return;
+  /*
+   * Arrancado significa las dos cosas a la vez: esta bandera Y la cola puesta
+   * en `window`. Con la bandera sola bastaba que algo se llevara `window.fbq`
+   * —la recarga en caliente de Vite, una prueba que limpia entre casos— para
+   * que el píxel se creyera vivo y no volviera a montarse nunca.
+   */
+  if (initialised && window.fbq) return;
+  if (!usable()) return;
   initialised = true;
 
   ensureQueue();
