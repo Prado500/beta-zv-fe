@@ -84,8 +84,15 @@ const VerifyStep: React.FC<VerifyStepProps> = ({ email, submitting, onBack }) =>
         {email}
       </p>
 
+      {/*
+        "El archivo descargable" sonaba a que el HTML de la carta viaja adjunto, y
+        no viaja: por correo van el enlace y el QR. El HTML se descarga desde "Mis
+        dedicatorias", y decirlo aquí evita que alguien busque en el correo un
+        adjunto que no existe y dé por perdido lo que compró.
+      */}
       <p className="font-body-md text-xs text-on-surface-variant/90 leading-relaxed mt-3">
-        Ahí llegan el código QR, el enlace y el archivo descargable. Una vez enviada,{' '}
+        Ahí llegan el enlace de la carta y su código QR descargable. Tu carta en HTML te espera
+        en <strong className="text-wine">Mis dedicatorias</strong>. Una vez enviada,{' '}
         <strong className="text-wine">NO</strong> podrás cambiar la carta ni la dirección.
       </p>
 
@@ -220,10 +227,9 @@ export const EmailConfirmModal: React.FC<EmailConfirmModalProps> = ({
           ) : (
             <>
               <p className="font-body-md text-sm text-on-surface-variant leading-relaxed">
-                A esta dirección llegan el <strong className="text-wine">enlace</strong> de la carta,
-                el <strong className="text-wine">código QR</strong> y el{' '}
-                <strong className="text-wine">archivo descargable</strong>. Es lo que vas a entregar,
-                así que escríbela bien.
+                A esta dirección llegan el <strong className="text-wine">enlace</strong> de la carta
+                y su <strong className="text-wine">código QR descargable</strong>. Es lo que vas a
+                entregar, así que escríbela bien.
               </p>
 
               <div className="w-full mt-5 text-left">

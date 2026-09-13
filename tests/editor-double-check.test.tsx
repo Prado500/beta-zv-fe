@@ -85,8 +85,13 @@ describe('EditorPage · confirmación del correo', () => {
 
     // Primer paso: dice qué llega y a dónde. El correo se pide AQUÍ, así que nace vacío.
     expect(dialog.textContent).toContain('Es lo que vas a entregar');
-    expect(dialog.textContent).toContain('archivo descargable');
-    expect(dialog.textContent).toContain('código QR');
+    expect(dialog.textContent).toContain('código QR descargable');
+    /*
+     * Y NO promete un adjunto: por correo van el enlace y el QR, nunca el HTML de
+     * la carta. Esta prueba fijaba antes «archivo descargable», que era justo la
+     * frase que hacía buscar en el correo algo que no llega.
+     */
+    expect(dialog.textContent).not.toMatch(/archivo descargable|adjunt/i);
     expect((emailField() as HTMLInputElement).value).toBe('');
     // Sin freno todavía: aquí no hay nada que releer
     expect(continueButton().disabled).toBe(false);
@@ -95,6 +100,10 @@ describe('EditorPage · confirmación del correo', () => {
     await goToVerify(user);
     expect(dialog.textContent).toContain(VALID_LETTER.email);
     expect(dialog.textContent).toContain('podrás cambiar la carta ni la dirección');
+    // Aquí tampoco se promete un adjunto, y se dice dónde queda el HTML
+    expect(dialog.textContent).toContain('código QR descargable');
+    expect(dialog.textContent).toContain('Mis dedicatorias');
+    expect(dialog.textContent).not.toMatch(/archivo descargable|adjunt/i);
 
     // Lo importante: la petición sigue sin salir.
     expect(createLetter).not.toHaveBeenCalled();
