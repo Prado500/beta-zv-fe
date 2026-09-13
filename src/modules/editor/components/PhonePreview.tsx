@@ -129,11 +129,13 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ data, isFullView = f
   });
 
   /**
-   * El muro de interacción. Tocar el sobre es el gesto que el navegador exige
-   * para reproducir con sonido; la orden de reproducir sale cuando la hoja ya
-   * se ve, con el reproductor a la vista. Si aun así el navegador la rechaza
-   * —iOS no traspasa el gesto a un iframe de otro origen—, el reproductor lo
-   * dice y un toque sobre el vídeo basta.
+   * Segundo intento, ya con la hoja a la vista.
+   *
+   * El primero sale del propio toque (ver `handleOpen`). Este cubre el caso en
+   * que YouTube lo rechazara por visibilidad: pide que más de la mitad del
+   * reproductor se vea para arrancar sola, y al abrir el sobre el reproductor
+   * todavía está al final de la carta, sin asomar. Sobre un vídeo que ya suena
+   * `playVideo()` no hace nada, así que repetirlo no interrumpe.
    */
   useEffect(() => {
     if (!reading || !videoId) return;
@@ -144,6 +146,23 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ data, isFullView = f
   const handleOpen = () => {
     if (card.view !== 'envelope') return;
     if ('vibrate' in navigator) navigator.vibrate?.(12);
+
+    /*
+     * La canción arranca AQUÍ, dentro del propio manejador del toque.
+     *
+     * Es la única ventana que sirve: los navegadores móviles solo dejan sonar
+     * lo que se pide durante un gesto del usuario, y de forma síncrona. Antes
+     * la orden salía del efecto de arriba, varios segundos después —sobre,
+     * floración, frase, recuerdos, estallido—, cuando la activación ya había
+     * caducado: en el móvil la carta se abría en silencio.
+     *
+     * `play()` no devuelve promesa que encadenar (la IFrame API de YouTube no
+     * las usa), así que no hay nada que capturar: si el navegador se niega, el
+     * hook lo detecta por `onAutoplayBlocked` o por su margen de espera y deja
+     * el reproductor en estado `blocked`. Ni excepción ni ruido en consola.
+     */
+    if (videoId) playSong();
+
     card.open();
   };
 
@@ -289,13 +308,24 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ data, isFullView = f
     return (
       <CardStage palette={palette} recipient={recipientName}>
         {/*
-          Medidas del teléfono, las mismas del HTML descargable: 360 px de
-          ancho como tope, la pantalla entera en móvil y una tarjeta con
-          esquinas y sombra de 640 px arriba. Antes era `max-w-lg` (512 px) y
-          la carta salía casi cuadrada, con el contenido nadando a lo ancho.
+          Medidas del teléfono, las mismas del HTML descargable: la pantalla
+          entera en móvil y una tarjeta de 360 px con esquinas y sombra de
+          640 px arriba. Antes era `max-w-lg` (512 px) y la carta salía casi
+          cuadrada, con el contenido nadando a lo ancho.
+
+          El tope es `sm:` y no de base a propósito: casi ningún móvil actual
+          mide 360 px —390, 412, 430— así que el tope dejaba franjas de
+          escenario a los lados, con el patrón de flores cortado antes del
+          borde. En móvil la carta va a sangre; el tope solo tiene sentido
+          cuando hay escenario alrededor que enseñar.
+
+          Y ese tope es 430, no 360: con 360 sobre 820 de alto la pieza salía
+          larga y estrecha, con el texto cayendo en una columna de dos
+          palabras. La hoja ya es fluida hasta 420 px (`letterCss`), así que
+          ensanchar el marco ensancha la carta, no el margen.
         */}
         <div
-          className="relative z-10 flex w-full max-w-[360px] flex-col overflow-hidden h-dvh sm:h-[820px] sm:max-h-[92dvh] sm:rounded-[28px] sm:shadow-[0_40px_80px_-24px_rgba(0,0,0,0.35),0_4px_14px_-6px_rgba(0,0,0,0.18)]"
+          className="relative z-10 flex w-full flex-col overflow-hidden h-dvh sm:h-[820px] sm:max-w-[430px] sm:max-h-[92dvh] sm:rounded-[28px] sm:shadow-[0_40px_80px_-24px_rgba(0,0,0,0.35),0_4px_14px_-6px_rgba(0,0,0,0.18)]"
           style={{ backgroundColor: palette.cardBg, border: `1px solid ${palette.border}` }}
         >
           {body}

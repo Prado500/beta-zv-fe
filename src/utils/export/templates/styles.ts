@@ -38,6 +38,19 @@ export const buildStyles = (palette: ThemePalette, decor: ThemeDecor): string =>
   --serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
   --sans: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --script: 'Great Vibes', 'Playfair Display', cursive;
+  /*
+   * Ancho del contenido de la carta. Todo lo que vive dentro del teléfono
+   * —membrete, hoja, música, regalos— colgaba de un número suelto distinto, y
+   * ensanchar la pieza dejaba el texto en la misma columna estrecha con más
+   * aire alrededor: más grande el marco, igual de apretada la carta.
+   *
+   * Fluido y no fijo: con la carta a sangre, un ancho clavado en 280 px se
+   * volvía MÁS estrecho en proporción cuanto mayor era el móvil —en uno de
+   * 412 px dejaba 66 px de margen a cada lado—. Así sigue al dispositivo y se
+   * detiene en 340, que es lo que aguanta una columna de lectura cómoda; en
+   * escritorio el tope entra solo, sin necesidad de otra regla.
+   */
+  --content-w: min(340px, 80vw);
 }
 
 * { box-sizing: border-box; -ms-overflow-style: none; scrollbar-width: none; }
@@ -132,7 +145,7 @@ body {
 .phone {
   position: relative;
   width: 100%;
-  max-width: 360px;
+  /* Sin tope de ancho aquí: a sangre en móvil. El porqué, en el @media de abajo. */
   /*
    * Con la barra del navegador delante, el fondo del teléfono caía por debajo
    * del borde y, como el cuerpo no desplaza, no había manera de llegar al final
@@ -160,6 +173,17 @@ body {
 ${NO_JS_TRIGGER_CSS}
 @media (min-width: 640px) {
   .phone {
+    /*
+     * El tope de ancho vive solo aquí. Casi ningún móvil actual mide 360 px
+     * —390, 412, 430—, así que aplicarlo abajo dejaba franjas de escenario a
+     * los lados, con el fondo del tema cortado antes del borde. Arriba sí hay
+     * escenario alrededor que enseñar, y ahí la tarjeta debe estar acotada.
+     *
+     * 430 y no 360: con 360 y 820 de alto la pieza salía larga y estrecha, con
+     * el texto en una columna de dos palabras. 430 es el ancho de un móvil
+     * grande de verdad, así que sigue leyéndose como un teléfono apoyado.
+     */
+    max-width: 430px;
     height: 820px;
     max-height: 92vh;
     max-height: 92dvh;
@@ -369,12 +393,12 @@ ${
   line-height: 1.2;
   color: var(--text);
   margin: 0 auto;
-  max-width: 280px;
+  max-width: var(--content-w);
 }
 .card__ornament { margin: 18px auto; display: block; }
 .card__body {
   width: 100%;
-  max-width: 280px;
+  max-width: var(--content-w);
   margin: 8px auto 0;
   padding: 0 8px;
   position: relative;
@@ -489,7 +513,7 @@ ${
   z-index: 20;
   margin: 22px auto 0;
   width: 88%;
-  max-width: 300px;
+  max-width: calc(var(--content-w) + 20px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -498,7 +522,7 @@ ${
 .music__screen {
   position: relative;
   width: 100%;
-  max-width: 280px;
+  max-width: var(--content-w);
   aspect-ratio: 16 / 9;
   border-radius: 18px;
   overflow: hidden;
@@ -551,7 +575,7 @@ ${
   z-index: 20;
   margin: 22px auto 0;
   width: 88%;
-  max-width: 300px;
+  max-width: calc(var(--content-w) + 20px);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -832,7 +856,7 @@ button.player__button { padding: 0; font: inherit; cursor: pointer; -webkit-appe
 .sheet {
   position: relative;
   width: 100%;
-  max-width: 279px;
+  max-width: calc(var(--content-w) - 1px);
   margin: 6px auto 0;
   padding: 26px 18px 30px;
   border-radius: 22px;
@@ -976,7 +1000,7 @@ ${
   position: relative;
   z-index: 0;
   width: 100%;
-  max-width: 288px;
+  max-width: calc(var(--content-w) + 8px);
   /* El sobre les monta encima: sin este solape parecen dos piezas sueltas */
   margin-top: -34px;
   display: flex;
@@ -1019,7 +1043,7 @@ ${
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 279px;
+  max-width: calc(var(--content-w) - 1px);
   margin: 26px auto 0;
   display: flex;
   align-items: flex-end;
