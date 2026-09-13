@@ -6,8 +6,7 @@
  * "An error occurred" en todos. Con un solo archivo, cambiar un vídeo es
  * cambiar una línea, y un ID inválido no puede quedarse escondido en un JSX.
  *
- * Ya están los definitivos salvo la tercera reacción, que sigue con el de
- * respaldo hasta que se grabe. Cuidado al probar: los vídeos musicales con licencia de sello
+ * Ya están todos los definitivos. Cuidado al probar: los vídeos musicales con licencia de sello
  * devuelven error 150 si la página se sirve desde una IP (127.0.0.1 o la IP de
  * la LAN); desde `localhost` o el dominio real reproducen.
  */
@@ -21,7 +20,7 @@ export const LANDING_VIDEOS = {
   /** Vídeo 2 - Sección "Origen". */
   origin: 'wAqowOnCbmo',
   /** Vídeo 3 - Demostración sobre el editor en vivo. */
-  demo: 'yad4fEkE988',
+  demo: 'VUZ0Hdj6IHw',
   /** Vídeo 4 - Reacciones en grupo, en la prueba social. */
   validation: 'Vqk8Zylyfxc',
   /** Vídeo 5 - Sección de características. */
@@ -33,11 +32,11 @@ export const LANDING_VIDEOS = {
 /** Una reacción por testimonio, por su `id`. Son los cortos de Instagram. */
 export const REACTION_VIDEOS = {
   /** Reacción 1 */
-  qa: '6LeeDI5H1BI',
+  qa: 'H9a6-Ron3ac',
   /** Reacción 2 */
   andrea: 'd79INXy2POU',
-  /** Reacción 3: pendiente de grabar. Hasta entonces, el de respaldo. */
-  sofia: DEFAULT_VIDEO_ID,
+  /** Reacción 3 */
+  sofia: 'ipQ9WbfUJUg',
 } as const;
 
 /** Canción de la demo de la landing: la que "viene puesta" en el teléfono. */
