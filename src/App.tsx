@@ -7,6 +7,9 @@ import EditorPage from './modules/editor/page/EditorPage';
 import CardViewerPage from './modules/viewer/page/CardViewerPage';
 import PaymentReturnPage from './modules/promo/page/PaymentReturnPage';
 import MyDedicationsPage from './modules/dedications/page/MyDedicationsPage';
+import TermsPage from './modules/legal/page/TermsPage';
+import PrivacyPage from './modules/legal/page/PrivacyPage';
+import { LEGAL_ROUTES } from './modules/legal/legalRoutes';
 
 /**
  * El pixel de Meta, que necesita estar dentro del Router para saber la ruta.
@@ -54,6 +57,14 @@ export default function App() {
             correo y codifica en el QR (`FRONTEND_URL/carta/<slug>`); `/c/:slug` se
             mantiene para no romper enlaces antiguos.
           */}
+          {/*
+            Textos legales publicados. Van fuera del embudo a propósito: el
+            modal de compra sigue mostrando el suyo sin desmontar la compra, y
+            estas rutas son las que se enlazan desde el pie y el aviso de
+            cookies, donde no hay ninguna compra en curso que proteger.
+          */}
+          <Route path={LEGAL_ROUTES.terms} element={<TermsPage />} />
+          <Route path={LEGAL_ROUTES.privacy} element={<PrivacyPage />} />
           <Route path="/carta/:slug" element={<CardViewerPage />} />
           <Route path="/c/:slug" element={<CardViewerPage />} />
         </Routes>
