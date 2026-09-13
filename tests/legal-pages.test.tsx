@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import TermsPage from '../src/modules/legal/page/TermsPage';
@@ -6,6 +6,8 @@ import PrivacyPage from '../src/modules/legal/page/PrivacyPage';
 import { LEGAL_ROUTES } from '../src/modules/legal/legalRoutes';
 import { parseLegalDocument } from '../src/modules/legal/legalDocument';
 import { LegalMarkdown } from '../src/modules/legal/components/LegalMarkdown';
+import { TermsModal } from '../src/modules/legal/components/TermsModal';
+import { setupUser } from './testUtils';
 import terms from '../src/modules/legal/content/terminos-y-condiciones.md?raw';
 import privacy from '../src/modules/legal/content/politica-de-privacidad.md?raw';
 
@@ -126,5 +128,75 @@ describe('finales de línea del documento legal', () => {
     expect(container.querySelectorAll('h2')).toHaveLength(2);
     expect(container.querySelectorAll('p')).toHaveLength(2);
     expect(container.querySelector('h2')?.textContent).not.toContain('párrafo');
+  });
+});
+
+/**
+ * Encabezados en líneas consecutivas.
+ *
+ * El documento abre con `# Título` y `## Subtítulo` seguidos, sin línea en
+ * blanco. El troceo por línea en blanco los metía en el mismo bloque y `Block`
+ * los pintaba como un único `<h1>` con el `##` del subtítulo leído literal.
+ * Las páginas nunca lo sufrieron porque `parseLegalDocument` les entrega el
+ * cuerpo desde el primer apartado numerado y ese bloque se queda fuera; el
+ * modal muestra el documento entero —es el texto cuyo checksum se firma— y
+ * ahí sí se veía.
+ */
+describe('encabezados pegados sin línea en blanco', () => {
+  /** Lo que sirve `GET /api/v1/public/legal/terms`: los dos documentos juntos. */
+  const COMBINADO = `${terms}\n\n---\n\n${privacy}`;
+
+  it('un título y su subtítulo en líneas seguidas son dos encabezados', () => {
+    render(<LegalMarkdown markdown={'# Título\n## Subtítulo\n\nUn párrafo.'} />);
+
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Título');
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('Subtítulo');
+  });
+
+  it('no queda ni una almohadilla de markdown a la vista', () => {
+    const { container } = render(<LegalMarkdown markdown={COMBINADO} compact />);
+
+    expect(container.textContent).not.toContain('##');
+    expect(screen.getAllByRole('heading', { level: 1 })[0].textContent).toBe(
+      'TÉRMINOS Y CONDICIONES DE SERVICIO',
+    );
+  });
+
+  it('los dos documentos concatenados traen cada uno su título y su subtítulo', () => {
+    render(<LegalMarkdown markdown={COMBINADO} compact />);
+
+    expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent)).toEqual([
+      'TÉRMINOS Y CONDICIONES DE SERVICIO',
+      'POLÍTICA DE TRATAMIENTO DE DATOS PERSONALES Y PRIVACIDAD',
+    ]);
+    expect(
+      screen.getAllByRole('heading', { level: 2, name: 'Eternal Dedications — ZyvenCore S.A.S.' }),
+    ).toHaveLength(2);
+  });
+
+  it('también con finales de línea de Windows', () => {
+    render(<LegalMarkdown markdown={'# Título\r\n## Subtítulo\r\n\r\nUn párrafo.'} />);
+
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Título');
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('Subtítulo');
+    expect(screen.getByText('Un párrafo.')).toBeTruthy();
+  });
+
+  it('el modal de Términos muestra el título limpio y deja cerrar', async () => {
+    const user = setupUser();
+    const onClose = vi.fn();
+    render(
+      <TermsModal
+        terms={{ version: '1.1', checksum: 'sha', content: COMBINADO }}
+        onClose={onClose}
+      />,
+    );
+
+    expect(screen.getAllByRole('heading', { level: 1 })[0].textContent).toBe(
+      'TÉRMINOS Y CONDICIONES DE SERVICIO',
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Entendido, volver' }));
+    expect(onClose).toHaveBeenCalledOnce();
   });
 });
