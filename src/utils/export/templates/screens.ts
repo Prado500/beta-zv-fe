@@ -4,6 +4,7 @@ import { motifSvg, type ThemeDecor } from '../../themeDecor';
 import { COVER_DUST, garlandSvg, giftSvg, type Gift, type GiftPaint } from '../../themeGifts';
 import { withAlpha } from '../../themePalette';
 import { stageRoseColors } from '../../stageTheme';
+import { NO_JS_NOTICE_HTML } from './noJs';
 import { cornerFlourish, heartConfetti, icon, ornament, rose } from './ornaments';
 
 /** Colores con los que se tiñen los objetos del tema. */
@@ -180,6 +181,7 @@ export const buildCard = (
   return `
     <div class="card" id="card">
       <div class="card__inner">
+        ${NO_JS_NOTICE_HTML}
         <button type="button" class="card__close" id="close-card">${icon('lock', 13)} Cerrar</button>
 
         <!--

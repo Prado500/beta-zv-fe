@@ -3,6 +3,7 @@ import type { ThemePalette } from '../../themePalette';
 import type { ThemeDecor } from '../../themeDecor';
 import type { Gift } from '../../themeGifts';
 import { buildAmbient } from './ambient';
+import { NO_JS_STYLES_HTML, NO_JS_TRIGGER_HTML } from './noJs';
 import { buildRuntime } from './runtime';
 import { buildStyles } from './styles';
 import { buildBloom, buildBurst, buildMemories, buildPhrase } from './scenes';
@@ -51,6 +52,7 @@ export const buildDocument = ({
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400;1,600&family=Be+Vietnam+Pro:wght@400;500;600;700&family=Great+Vibes&display=swap">
 <style>${buildStyles(palette, decor)}</style>
+${NO_JS_STYLES_HTML}
 </head>
 <body>
 
@@ -59,6 +61,7 @@ ${buildStageDecor(palette, copy)}
 
   <div class="phone">
     <div class="phone__screen" id="screen">
+      ${NO_JS_TRIGGER_HTML}
       <div class="phone__bg"></div>
       ${buildAmbient(animationType)}
 
