@@ -15,9 +15,17 @@
  * **`PageView` no se dispara aquí.** `initMetaPixel` solo hace `init`; quien
  * cuenta las páginas es `<MetaPixel />`, que además cuenta las navegaciones
  * internas. Si esta función también rastreara, la primera visita valdría dos.
+ *
+ * **Nada ocurre sin consentimiento.** Meta Pixel es tecnología no esencial y la
+ * Política de Privacidad publicada lo dice en su apartado 10: no se activa
+ * hasta que la persona acepta. La pregunta se hace aquí, antes de cada cosa que
+ * este módulo hace, y no en quien llama: así no depende de que cada pantalla se
+ * acuerde de preguntar, y el día que se mida una conversión desde otro sitio
+ * sigue sin poder saltarse la decisión.
  */
 
 import { META_PIXEL_ID } from '../config/analytics';
+import { hasConsent } from './consent';
 
 const SCRIPT_SRC = 'https://connect.facebook.net/en_US/fbevents.js';
 const SCRIPT_ID = 'meta-pixel-sdk';
@@ -61,6 +69,7 @@ const loadScript = (doc: Document): void => {
  * comportamiento que se espera en una preview o en local.
  */
 export const initMetaPixel = (pixelId: string = META_PIXEL_ID): boolean => {
+  if (!hasConsent()) return false;
   if (!pixelId) return false;
   if (window.fbq) return true;
 
@@ -72,6 +81,7 @@ export const initMetaPixel = (pixelId: string = META_PIXEL_ID): boolean => {
 
 /** Cuenta una vista de página. No hace nada si el Pixel no está arrancado. */
 export const trackPageView = (): void => {
+  if (!hasConsent()) return;
   window.fbq?.('track', 'PageView');
 };
 
@@ -83,5 +93,6 @@ export const trackPageView = (): void => {
  * `PageView`.
  */
 export const trackMetaEvent = (eventName: string, params?: MetaPixelParams): void => {
+  if (!hasConsent()) return;
   window.fbq?.('track', eventName, params);
 };
