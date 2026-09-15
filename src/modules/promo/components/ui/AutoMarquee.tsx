@@ -1,4 +1,5 @@
 import React from 'react';
+import { useMarqueeDrag } from './useMarqueeDrag';
 
 interface AutoMarqueeProps {
   children: React.ReactNode;
@@ -14,6 +15,11 @@ interface AutoMarqueeProps {
    * número puesto sobre el borde, se corta si no se le reserva sitio.
    */
   padY?: number;
+  /**
+   * Espera antes de que la cinta vuelva a andar sola tras soltarla. Con `null`
+   * se queda en la tarjeta donde la dejaron.
+   */
+  resumeAfterMs?: number | null;
   label: string;
   className?: string;
 }
@@ -32,6 +38,11 @@ interface AutoMarqueeProps {
  * con `gap` hay 2N-1 huecos y la mitad no cuadra, así que el salto se vería.
  * Por lo mismo el ancho es fijo en px: un porcentaje contra un contenedor
  * `w-max` no tiene contra qué resolverse.
+ *
+ * Y se puede arrastrar: al tocarla se detiene y sigue al dedo; al soltar
+ * espera un momento y retoma la marcha desde donde quedó. Esa parte vive en
+ * `useMarqueeDrag`, que explica por qué hace falta apagar la animación para
+ * poder mover el carril.
  */
 export const AutoMarquee: React.FC<AutoMarqueeProps> = ({
   children,
@@ -39,19 +50,29 @@ export const AutoMarquee: React.FC<AutoMarqueeProps> = ({
   gap = 16,
   speed = 24,
   padY = 4,
+  resumeAfterMs,
   label,
   className = '',
 }) => {
   const items = React.Children.toArray(children);
   const duration = (items.length * (itemWidth + gap)) / speed;
+  const { rowRef, surface } = useMarqueeDrag({ durationSeconds: duration, resumeAfterMs });
 
   return (
     <div className={`relative ${className}`}>
+      {/*
+        `touch-action: pan-y` es lo que reparte el gesto: el dedo en horizontal
+        arrastra la cinta y en vertical sigue desplazando la página. Sin esto,
+        o se lleva el gesto la cinta o se lo lleva la página, y una de las dos
+        deja de responder.
+      */}
       <div
-        className="overflow-hidden -mx-margin-mobile px-margin-mobile"
+        {...surface}
+        className="overflow-hidden -mx-margin-mobile px-margin-mobile touch-pan-y select-none cursor-grab active:cursor-grabbing"
         style={{ paddingBlock: padY }}
       >
         <ul
+          ref={rowRef}
           role="list"
           aria-label={label}
           className="marquee-row flex w-max"
