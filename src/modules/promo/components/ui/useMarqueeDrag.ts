@@ -37,7 +37,13 @@ export interface MarqueeDragOptions {
 const currentX = (row: HTMLElement): number => {
   const { transform } = getComputedStyle(row);
   if (!transform || transform === 'none') return 0;
-  const parts = transform.match(/-?[\d.]+(?:e-?\d+)?/g);
+  /*
+   * Los números se leen de DENTRO del paréntesis. Sobre la cadena entera, el
+   * `3` de `matrix3d` cuenta como un valor más y corre todos los índices una
+   * posición: se acabaría leyendo un 0 y la cinta saltaría al origen.
+   */
+  const inside = transform.slice(transform.indexOf('(') + 1, transform.lastIndexOf(')'));
+  const parts = inside.match(/-?[\d.]+(?:e-?\d+)?/g);
   if (!parts) return 0;
   // matrix(a,b,c,d,tx,ty) | matrix3d(...16 valores, tx en la posición 13)
   const raw = parts.length === 6 ? parts[4] : parts[12];
@@ -137,8 +143,6 @@ export const useMarqueeDrag = ({
         startX: event.clientX,
         originX: freeze(row),
       };
-      // Capturar el puntero mantiene el gesto aunque el dedo salga de la cinta
-      event.currentTarget.setPointerCapture?.(event.pointerId);
     },
     [cancelResume, freeze],
   );
@@ -149,7 +153,20 @@ export const useMarqueeDrag = ({
     if (!active || active.pointerId !== event.pointerId || !row) return;
 
     const delta = event.clientX - active.startX;
-    if (Math.abs(delta) > DRAG_THRESHOLD_PX) moved.current = true;
+    if (!moved.current && Math.abs(delta) > DRAG_THRESHOLD_PX) {
+      moved.current = true;
+      /*
+       * El puntero se captura aquí, y no en el `pointerdown`, por lo que hace
+       * el navegador con el clic: mientras la captura está activa dirige el
+       * `click` al elemento que captura, no al que está bajo el dedo. Pedirla
+       * desde el principio dejaría sin clic a las tarjetas —ni un toque limpio
+       * les llegaría—. Pidiéndola solo cuando el gesto ya es un arrastre, el
+       * toque sigue llegando a la tarjeta y el clic del arrastre aterriza en
+       * esta superficie, que es justo donde se suprime. Y sigue haciendo lo
+       * suyo: que el gesto no se pierda si el dedo se sale de la cinta.
+       */
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    }
 
     const x = wrap(active.originX + delta, lapWidth(row));
     position.current = x;
@@ -163,7 +180,11 @@ export const useMarqueeDrag = ({
       if (!active || active.pointerId !== event.pointerId) return;
 
       drag.current = null;
-      event.currentTarget.releasePointerCapture?.(event.pointerId);
+      // Soltar un puntero que no está capturado lanza, y tras un toque limpio
+      // nunca llegó a capturarse: se pregunta antes.
+      if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
 
       // Sin espera configurada, la cinta se queda en la tarjeta que eligieron
       if (!row || resumeAfterMs === null) return;
