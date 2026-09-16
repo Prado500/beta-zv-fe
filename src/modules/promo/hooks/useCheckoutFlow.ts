@@ -67,8 +67,22 @@ const registerSchema = z
     email: email(),
     password: passwordRule,
     confirmPassword: z.string(),
+    /**
+     * Pedir factura es lo que convierte el documento en obligatorio.
+     *
+     * Antes se exigía a todo el mundo para abrir la cuenta, y es un dato
+     * tributario que la inmensa mayoría no necesita: solo hace falta para la
+     * factura electrónica o para declararlo en renta. Pedirlo en el primer paso
+     * de una compra de treinta mil pesos era fricción sin contrapartida.
+     */
+    wantsInvoice: z.boolean(),
+    /**
+     * El tipo no lleva regla propia: el desplegable nace en cédula y no admite
+     * vacío, así que siempre trae un código válido del catálogo. Quien decide si
+     * significa algo es `wantsInvoice`.
+     */
     documentType: z.enum(DOCUMENT_TYPE_CODES, { error: 'Elige tu tipo de documento.' }),
-    documentNumber: z.string().trim().min(1, 'El número de documento es obligatorio.'),
+    documentNumber: z.string().trim(),
     /**
      * No basta con que el campo exista: tiene que estar marcado. La Ley 1581 exige
      * autorización expresa, y una casilla sin marcar no lo es.
@@ -99,16 +113,28 @@ const registerSchema = z
     when: (payload) => z.object({ password: passwordRule }).safeParse(payload.value).success,
   })
   /**
-   * El formato del número depende del tipo: una cédula solo lleva dígitos, un
-   * pasaporte también letras. Va en un refinamiento de objeto porque necesita los
-   * dos campos a la vez; el mensaje se pinta bajo el número, que es el que se
-   * corrige.
+   * El documento, exigido solo a quien pide factura.
+   *
+   * Va en un refinamiento de objeto porque necesita tres campos a la vez: si hay
+   * factura, y el tipo junto al número —el formato depende del tipo, una cédula
+   * solo lleva dígitos y un pasaporte también letras—. Los dos mensajes se
+   * pintan bajo el número, que es el campo que se corrige.
    */
   .superRefine((values, ctx) => {
-    // Zod 4 ejecuta este refinamiento aunque otros campos hayan fallado, así que sin
-    // esta guarda un número vacío sacaría dos avisos a la vez: "es obligatorio" y
-    // "solo admite dígitos". Manda el primero, que es el que se puede arreglar.
-    if (!values.documentNumber) return;
+    // Sin factura el documento no es asunto nuestro, tenga lo que tenga escrito
+    if (!values.wantsInvoice) return;
+
+    if (!values.documentNumber) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'El número de documento es obligatorio.',
+        path: ['documentNumber'],
+      });
+      // Un número vacío sacaría dos avisos a la vez: "es obligatorio" y "solo
+      // admite dígitos". Manda el primero, que es el que se puede arreglar.
+      return;
+    }
+
     const problem = documentNumberProblem(values.documentType, values.documentNumber);
     if (problem) {
       ctx.addIssue({ code: 'custom', message: problem, path: ['documentNumber'] });
@@ -142,6 +168,7 @@ export interface CheckoutInput {
   email: string;
   password: string;
   confirmPassword: string;
+  wantsInvoice: boolean;
   documentType: string;
   documentNumber: string;
   acceptsTerms: boolean;
@@ -172,7 +199,7 @@ export type CheckoutStep = 'account' | 'confirm-email' | 'password' | 'login' | 
 
 /** Campos que deben estar sanos para salir de cada tramo del alta. */
 const STEP_FIELDS = {
-  account: ['name', 'documentType', 'documentNumber', 'email'],
+  account: ['name', 'email', 'documentType', 'documentNumber'],
   'confirm-email': ['email'],
 } as const satisfies Partial<Record<CheckoutStep, readonly (keyof CheckoutInput)[]>>;
 
@@ -189,6 +216,8 @@ const DEFAULTS: CheckoutInput = {
   email: '',
   password: '',
   confirmPassword: '',
+  // Nace sin marcar: la factura es la excepción, no el caso corriente.
+  wantsInvoice: false,
   documentType: DEFAULT_DOCUMENT_TYPE,
   documentNumber: '',
   // Nunca nace marcada: una casilla premarcada no es consentimiento válido.
@@ -364,9 +393,12 @@ export const useCheckoutFlow = ({ intent, onSignedIn }: CheckoutOptions) => {
             name: values.name,
             email: values.email,
             password: values.password,
-            documentType: values.documentType,
-            documentNumber: values.documentNumber,
             acceptedTermsVersion: terms.terms?.version ?? '',
+            // Sin factura, las claves no se envían siquiera vacías: el backend
+            // declara `extra="forbid"` y lo que no aplica no debe viajar.
+            ...(values.wantsInvoice
+              ? { documentType: values.documentType, documentNumber: values.documentNumber }
+              : {}),
           });
         } catch (problem) {
           // Solo el correo repetido significa "ya tienes cuenta". El conflicto de

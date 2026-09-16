@@ -237,8 +237,10 @@ const darDeAlta = async (
   await screen.findByLabelText('Tu nombre');
 
   await user.type(screen.getByLabelText('Tu nombre'), 'Prueba');
-  await user.type(screen.getByLabelText('Número de documento'), documento);
   await user.type(screen.getByLabelText('Tu correo'), email);
+  // El documento solo existe tras pedir factura, y este archivo comprueba que viaja
+  await user.click(screen.getByRole('checkbox', { name: /factura/i }));
+  await user.type(screen.getByLabelText('Número de documento'), documento);
   await user.click(screen.getByRole('button', { name: /^Siguiente/ }));
   await screen.findByLabelText('Corrígelo aquí si hace falta');
   // El freno de 3 s del paso de confirmación se consume, no se espera.

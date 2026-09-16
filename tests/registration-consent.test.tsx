@@ -85,11 +85,16 @@ const submitButton = () =>
 const consentBox = () => asInput(screen.getByRole('checkbox'));
 const termsLink = () => screen.getByRole('button', { name: /Términos y la Política/ });
 
-/** Rellena el primer paso. El tipo de documento no se toca: viene preseleccionado. */
+/**
+ * Rellena el primer paso pidiendo factura, que es lo que ahora hace aparecer el
+ * documento: sin marcarla los campos ni se montan. El tipo no se toca, viene
+ * preseleccionado en cédula.
+ */
 const fillAccountStep = async (user: ReturnType<typeof setup>, document = DOCUMENT) => {
   await user.type(screen.getByLabelText('Tu nombre'), NAME);
-  await user.type(screen.getByLabelText('Número de documento'), document);
   await user.type(screen.getByLabelText('Tu correo'), EMAIL);
+  await user.click(screen.getByRole('checkbox', { name: /factura/i }));
+  await user.type(screen.getByLabelText('Número de documento'), document);
 };
 
 /** Hasta el paso de la contraseña, con la cuenta regresiva ya consumida. */
@@ -141,10 +146,12 @@ describe('alta con documento y consentimiento', () => {
     const user = setup();
     open();
 
-    const field = screen.getByLabelText('Número de documento');
     await user.type(screen.getByLabelText('Tu nombre'), NAME);
-    await user.type(field, '10AB7654');
     await user.type(screen.getByLabelText('Tu correo'), EMAIL);
+    await user.click(screen.getByRole('checkbox', { name: /factura/i }));
+
+    const field = screen.getByLabelText('Número de documento');
+    await user.type(field, '10AB7654');
 
     // El aviso llega mientras se escribe, sin esperar al envío.
     expect(await screen.findByText(/solo admite dígitos/i)).toBeTruthy();
@@ -168,6 +175,7 @@ describe('alta con documento y consentimiento', () => {
     open();
 
     await user.type(screen.getByLabelText('Tu nombre'), NAME);
+    await user.click(screen.getByRole('checkbox', { name: /factura/i }));
     await user.type(screen.getByLabelText('Número de documento'), '1');
     await user.clear(screen.getByLabelText('Número de documento'));
 
