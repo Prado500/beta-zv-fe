@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { SPOTS, formatSpots, spotsRatio, spotsTaken } from '../../../../config/campaign';
+import { formatSpots, spotsRatio, spotsTaken } from '../../../../config/campaign';
+import { useSpots } from '../../useSpots';
 import { Motif } from '../../../../components/decor';
 
 /** Duración del llenado y del conteo, en ms. */
@@ -17,6 +18,7 @@ const easeOut = (t: number): number => 1 - (1 - t) ** 3;
  * de una vez, sin recorrido.
  */
 export const SpotsMeter: React.FC<{ className?: string }> = ({ className = '' }) => {
+  const { total, remaining } = useSpots();
   const ref = useRef<HTMLDivElement>(null);
   const reduced =
     typeof window !== 'undefined' &&
@@ -55,10 +57,13 @@ export const SpotsMeter: React.FC<{ className?: string }> = ({ className = '' })
     };
   }, [reduced]);
 
-  const ratio = spotsRatio();
-  const taken = spotsTaken();
+  // El llenado depende solo de `progress`, así que si la cifra real llega a media
+  // animación el recorrido se limita a reapuntar al nuevo destino. Recalcularlo desde el
+  // valor vigente es más simple que congelar el objetivo al arrancar, y no se nota.
+  const ratio = spotsRatio(total, remaining);
+  const taken = spotsTaken(total, remaining);
   const shownTaken = Math.round(taken * progress);
-  const shownRemaining = SPOTS.total - shownTaken;
+  const shownRemaining = total - shownTaken;
 
   return (
     <div ref={ref} className={className}>
@@ -71,7 +76,7 @@ export const SpotsMeter: React.FC<{ className?: string }> = ({ className = '' })
           <span className="text-xs font-bold text-wine/70">disponibles</span>
         </span>
         <span className="text-xs font-semibold text-on-surface-variant tabular-nums">
-          de {formatSpots(SPOTS.total)}
+          de {formatSpots(total)}
         </span>
       </div>
 
@@ -80,9 +85,9 @@ export const SpotsMeter: React.FC<{ className?: string }> = ({ className = '' })
         className="relative h-3 rounded-full bg-blush ring-1 ring-wine/15 overflow-hidden"
         role="progressbar"
         aria-valuemin={0}
-        aria-valuemax={SPOTS.total}
+        aria-valuemax={total}
         aria-valuenow={taken}
-        aria-valuetext={`${formatSpots(SPOTS.remaining)} cupos disponibles de ${formatSpots(SPOTS.total)}`}
+        aria-valuetext={`${formatSpots(remaining)} cupos disponibles de ${formatSpots(total)}`}
       >
         <div
           className="h-full rounded-full bg-linear-to-r from-wine-deep via-wine to-primary"

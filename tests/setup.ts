@@ -1,4 +1,4 @@
-import { afterEach, beforeEach } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
 
 /**
  * Lo que jsdom no trae y el código sí usa.
@@ -48,3 +48,19 @@ afterEach(() => {
   window.sessionStorage.clear();
   window.localStorage.clear();
 });
+
+/**
+ * Cupos de la campaña: respuesta por defecto, para nadie en concreto.
+ *
+ * La landing pide esta cifra al montarse. Sin este doble, cada prueba que monte la
+ * landing por cualquier otro motivo —los vídeos, los anclajes, el botón de compra—
+ * saldría a la red de verdad; el proveedor se traga el fallo y pinta el respaldo, así
+ * que la prueba pasaría igual, pero pasaría **después** de un intento de conexión.
+ *
+ * Quien mida el contador de verdad (`spots-counter.test.tsx`) redefine esto por caso:
+ * es un `vi.fn`, no una constante.
+ */
+vi.mock('../src/modules/promo/services/spots', () => ({
+  fetchSpots: vi.fn(() => Promise.resolve({ total: 10000, taken: 1636, remaining: 8364 })),
+  forgetSpots: vi.fn(),
+}));

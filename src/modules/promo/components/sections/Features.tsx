@@ -1,11 +1,14 @@
 import React from 'react';
 import { HeartConfetti, PhotoFrame } from '../../../../components/decor';
 import { SpotsMeter } from '../ui/SpotsMeter';
-import { SPOTS, formatSpots } from '../../../../config/campaign';
+import { formatSpots } from '../../../../config/campaign';
+import { useSpots } from '../../useSpots';
 import { YouTubeFacade } from '../../../../components/media/YouTubeFacade';
 import { LANDING_VIDEOS } from '../../../../config/videos';
 
 export const Features: React.FC = () => {
+  const { total } = useSpots();
+
   return (
     <section id="cupos" className="py-14 md:py-section-gap relative overflow-hidden scroll-mt-32">
       <div className="absolute top-0 inset-x-0 h-px rule-gold"></div>
@@ -30,7 +33,7 @@ export const Features: React.FC = () => {
              </h3>
              <p className="text-on-surface-variant text-sm">
                Es si ella va a ser parte de la dedicación eterna, o se va a enterar por redes de que
-               otras sí lo fueron. Son {formatSpots(SPOTS.total)} espacios y cuando se acaben, se
+               otras sí lo fueron. Son {formatSpots(total)} espacios y cuando se acaben, se
                acabaron.
              </p>
 

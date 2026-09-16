@@ -5,6 +5,9 @@ import { MemoryRouter } from 'react-router-dom';
 import { ANONYMOUS, type AuthSnapshot } from '../src/modules/auth/AuthContext';
 import { AuthProvider } from '../src/modules/auth/AuthProvider';
 import type { UserResponse } from '../src/modules/auth/services/auth';
+import { FALLBACK } from '../src/modules/promo/SpotsContext';
+import { SpotsProvider } from '../src/modules/promo/SpotsProvider';
+import type { Spots } from '../src/modules/promo/services/spots';
 
 /**
  * Utilidades comunes de las pruebas.
@@ -47,17 +50,29 @@ export const signedIn = (user: UserResponse = USER): AuthSnapshot => ({
  *
  * `auth` es lo que la app ya sabe de la sesión al montar. Por defecto, nada:
  * anónimo y sin sonda, que es como llega casi todo el mundo.
+ *
+ * `spots` cubre a las secciones que se montan sueltas: la barra de escasez y el medidor
+ * exigen un `SpotsProvider` por encima, y en la app real se lo pone la landing. Con un
+ * valor inicial el proveedor no pide nada, así que montar una sección no arrastra una
+ * petición de cupos que la prueba no ha pedido.
  */
 export const renderAt = (
   ui: ReactElement,
-  { path = '/', state, auth = ANONYMOUS }: { path?: string; state?: unknown; auth?: AuthSnapshot } = {},
+  {
+    path = '/',
+    state,
+    auth = ANONYMOUS,
+    spots = FALLBACK,
+  }: { path?: string; state?: unknown; auth?: AuthSnapshot; spots?: Spots } = {},
 ) => {
   // La vuelta de la pasarela llega con `?payment_id=...`: el `path` puede traer
   // su query y hay que separarla, porque `pathname` no la interpreta.
   const [pathname, search] = path.split('?');
   return render(
     <MemoryRouter initialEntries={[{ pathname, search: search ? `?${search}` : '', state }]}>
-      <AuthProvider initial={auth}>{ui}</AuthProvider>
+      <AuthProvider initial={auth}>
+        <SpotsProvider initial={spots}>{ui}</SpotsProvider>
+      </AuthProvider>
     </MemoryRouter>,
   );
 };

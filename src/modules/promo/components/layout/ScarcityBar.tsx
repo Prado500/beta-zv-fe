@@ -1,7 +1,10 @@
 import React from 'react';
-import { SPOTS, formatSpots } from '../../../../config/campaign';
+import { formatSpots } from '../../../../config/campaign';
+import { useSpots } from '../../useSpots';
 
 export const ScarcityBar: React.FC = () => {
+  const { remaining } = useSpots();
+
   return (
     <div className="relative w-full bg-linear-to-r from-wine-deep via-wine to-primary text-white py-1.5 md:py-2 px-3 text-center text-xs md:text-sm font-label-md shadow-md overflow-hidden">
       <div
@@ -16,9 +19,9 @@ export const ScarcityBar: React.FC = () => {
           local_fire_department
         </span>
         {/* En móvil el texto largo se partía en tres líneas dentro de una barra fija */}
-        <span className="md:hidden">Quedan {formatSpots(SPOTS.remaining)} cupos</span>
+        <span className="md:hidden">Quedan {formatSpots(remaining)} cupos</span>
         <span className="hidden md:inline">
-          TENDENCIA NACIONAL: Solo quedan {formatSpots(SPOTS.remaining)} unidades disponibles
+          TENDENCIA NACIONAL: Solo quedan {formatSpots(remaining)} unidades disponibles
         </span>
         <span
           className="material-symbols-outlined text-[16px] md:text-[20px] shrink-0"

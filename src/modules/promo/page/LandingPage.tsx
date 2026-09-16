@@ -13,6 +13,7 @@ import { Pricing } from '../components/sections/Pricing';
 import { PurchaseModal } from '../components/checkout/PurchaseModal';
 import type { CheckoutIntent } from '../hooks/useCheckoutFlow';
 import { useSmoothAnchors } from '../../../hooks/useSmoothAnchors';
+import { SpotsProvider } from '../SpotsProvider';
 
 export default function LandingPage() {
   /**
@@ -24,34 +25,40 @@ export default function LandingPage() {
   /* Los enlaces internos —barra, botones del hero, pie— van suaves */
   useSmoothAnchors();
 
+  /*
+   * Una sola lectura de cupos para los tres sitios que la pintan: la barra superior,
+   * el medidor de la sección de tendencia y la prosa que la acompaña.
+   */
   return (
-    <div className="relative paper-sheet paper-vignette text-on-background font-body-md antialiased selection:bg-primary-container/30 selection:text-primary">
-      {/* Corazones regados sobre toda la hoja, detrás del contenido */}
-      <HeartConfetti count={18} tone="rose" opacity={0.09} fixed className="z-0" />
+    <SpotsProvider>
+      <div className="relative paper-sheet paper-vignette text-on-background font-body-md antialiased selection:bg-primary-container/30 selection:text-primary">
+        {/* Corazones regados sobre toda la hoja, detrás del contenido */}
+        <HeartConfetti count={18} tone="rose" opacity={0.09} fixed className="z-0" />
 
-      {/* Ambas barras fijadas juntas en la parte superior */}
-      <div className="sticky top-0 z-50">
-        <ScarcityBar />
-        <Header onSignIn={() => setModal('signin')} />
+        {/* Ambas barras fijadas juntas en la parte superior */}
+        <div className="sticky top-0 z-50">
+          <ScarcityBar />
+          <Header onSignIn={() => setModal('signin')} />
+        </div>
+
+        <main className="relative z-10">
+          <Hero />
+          <Origin />
+          <LivePreview />
+          <SocialProof />
+          <Features />
+          <HowItWorks />
+          <Pricing onBuy={() => setModal('checkout')} />
+        </main>
+
+        <Footer />
+
+        <PurchaseModal
+          open={modal !== null}
+          intent={modal ?? 'checkout'}
+          onClose={() => setModal(null)}
+        />
       </div>
-
-      <main className="relative z-10">
-        <Hero />
-        <Origin />
-        <LivePreview />
-        <SocialProof />
-        <Features />
-        <HowItWorks />
-        <Pricing onBuy={() => setModal('checkout')} />
-      </main>
-
-      <Footer />
-
-      <PurchaseModal
-        open={modal !== null}
-        intent={modal ?? 'checkout'}
-        onClose={() => setModal(null)}
-      />
-    </div>
+    </SpotsProvider>
   );
 }
