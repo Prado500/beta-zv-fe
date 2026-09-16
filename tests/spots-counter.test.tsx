@@ -1,8 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { StrictMode } from 'react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import LandingPage from '../src/modules/promo/page/LandingPage';
 import { ApiError } from '../src/utils/api';
 import { fetchSpots, type Spots } from '../src/modules/promo/services/spots';
+import { ScarcityBar } from '../src/modules/promo/components/layout/ScarcityBar';
+import { SpotsProvider } from '../src/modules/promo/SpotsProvider';
 import { deferred, renderAt } from './testUtils';
 
 /**
@@ -43,6 +46,10 @@ beforeEach(() => {
       unobserve() {}
     },
   );
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 /** El medidor, localizado por su barra de progreso. */
@@ -113,6 +120,23 @@ describe('contador de cupos', () => {
     await waitFor(() => {
       expect(screen.getByText(/Quedan 7\.500 cupos/)).toBeTruthy();
     });
+  });
+
+  it('bajo StrictMode la cifra real se pinta igual', async () => {
+    // El doble montaje de desarrollo monta, limpia y vuelve a montar. Con una bandera de
+    // cancelación en la limpieza, la única respuesta en vuelo se descartaba y el contador
+    // se quedaba clavado en el respaldo: en `npm run dev` la cifra real no aparecía nunca.
+    asked.mockResolvedValue({ total: 10000, taken: 2500, remaining: 7500 });
+    render(
+      <StrictMode>
+        <SpotsProvider>
+          <ScarcityBar />
+        </SpotsProvider>
+      </StrictMode>,
+    );
+
+    await waitFor(() => expect(screen.getByText(/Quedan 7\.500 cupos/)).toBeTruthy());
+    expect(asked).toHaveBeenCalledTimes(1);
   });
 
   it('agotado se dice con un cero, nunca con un número negativo', async () => {

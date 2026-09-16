@@ -14,7 +14,12 @@ import { fetchSpots, type Spots } from './services/spots';
  * viejo, y cualquier mensaje de error ahí haría más daño que la cifra desactualizada.
  *
  * `loaded` cubre el doble montaje de StrictMode, igual que la sonda de `AuthProvider`:
- * sin él se gastarían dos lecturas por visita en desarrollo.
+ * sin él se gastarían dos lecturas por visita en desarrollo. Y, como en `AuthProvider`,
+ * no hay bandera de cancelación: con `loaded` puesto, el segundo efecto de StrictMode
+ * sale sin pedir nada, así que la única respuesta en vuelo es la del primero — y una
+ * limpieza que la marcara como cancelada la tiraría a la basura, dejando el contador
+ * clavado en el respaldo para siempre. Escribir el estado de un componente ya
+ * desmontado no hace nada en React 19, que es justo lo que se quiere aquí.
  */
 
 interface SpotsProviderProps {
@@ -31,20 +36,11 @@ export const SpotsProvider: React.FC<SpotsProviderProps> = ({ initial, children 
     if (loaded.current) return;
     loaded.current = true;
 
-    // La respuesta de una landing ya desmontada no debe escribir en el estado.
-    let cancelled = false;
-
     fetchSpots()
-      .then((fresh) => {
-        if (!cancelled) setSpots(fresh);
-      })
+      .then(setSpots)
       .catch(() => {
         // Silencio deliberado: se queda el respaldo (ver el encabezado).
       });
-
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   return <SpotsContext.Provider value={spots}>{children}</SpotsContext.Provider>;
