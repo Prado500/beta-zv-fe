@@ -20,9 +20,12 @@ export interface Credentials {
   email: string;
   password: string;
   name: string;
-  /** Código oficial DIAN, como lo devuelve el `<select>`. */
-  documentType: string;
-  documentNumber: string;
+  /**
+   * Código oficial DIAN, como lo devuelve el `<select>`. Opcionales: solo se
+   * conocen si la persona pidió factura, y lo que no se pidió no se inventa.
+   */
+  documentType?: string;
+  documentNumber?: string;
   /** Versión exacta del texto que la persona aceptó, tal y como la sirvió la API. */
   acceptedTermsVersion: string;
 }
@@ -43,15 +46,17 @@ export const MAX_PASSWORD = 10;
  * Alta de la cuenta. **No abre sesión**: el backend responde 201 con el usuario
  * y sin cookie, así que después hay que llamar a `login`.
  *
- * Ya no crea solo una cuenta: es un acto legal. La misma petición guarda el
- * documento de identidad (cifrado, para poder facturar ante la DIAN) y la prueba
- * de que la persona autorizó el tratamiento de sus datos. Las tres cosas entran
- * juntas o no entra ninguna, así que un fallo aquí no deja una cuenta a medias.
+ * Ya no crea solo una cuenta: es un acto legal. La misma petición guarda la
+ * prueba de que la persona autorizó el tratamiento de sus datos y, **solo si
+ * pidió factura**, su documento de identidad (cifrado, para poder facturar ante
+ * la DIAN). Entra todo junto o no entra nada, así que un fallo aquí no deja una
+ * cuenta a medias.
  *
  * El cuerpo se arma campo a campo y no se reenvía el objeto del formulario tal
  * cual: `Register` declara `extra="forbid"`, así que cualquier campo de más
  * —`confirmPassword` o `acceptsTerms`, sin ir más lejos— tumbaría la petición
- * con un 422.
+ * con un 422. Por lo mismo, sin factura las claves del documento no viajan
+ * siquiera vacías: se omiten del objeto.
  */
 export const register = ({
   name,
@@ -65,10 +70,12 @@ export const register = ({
     name,
     email,
     password,
-    // El select devuelve texto; el backend espera el entero del catálogo DIAN.
-    documentType: Number(documentType),
-    documentNumber,
     acceptedTermsVersion,
+    // Los dos o ninguno: media identidad no sirve para emitir nada.
+    ...(documentType && documentNumber
+      ? // El select devuelve texto; el backend espera el entero del catálogo DIAN.
+        { documentType: Number(documentType), documentNumber }
+      : {}),
   });
 
 /** Abre la sesión: el servidor deja la cookie `HttpOnly` y devuelve el usuario. */
