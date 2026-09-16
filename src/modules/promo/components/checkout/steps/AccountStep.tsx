@@ -1,16 +1,17 @@
 import React from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 import type { CheckoutInput, CheckoutValues } from '../../../hooks/useCheckoutFlow';
-import { DocumentTypeSelect } from '../../../../../components/ui/DocumentTypeSelect';
 import { FieldError } from '../../../../../components/ui/FieldError';
+import { InvoiceFields } from './InvoiceFields';
 import { fieldClass, fieldTone, HINT, LABEL } from '../../../../../components/ui/formStyles';
 
 /**
- * Paso 1: quién es legalmente y a dónde le escribimos.
+ * Paso 1: cómo te llamas y a dónde te escribimos. Nada más.
  *
- * El nombre y el documento son la misma idea partida en dos, así que van juntos: la
- * factura electrónica que exige la DIAN necesita las dos cosas. El correo es lo otro,
- * porque es por donde llega la carta.
+ * Obligatorio solo hay dos cosas: el nombre y el correo, que es por donde llega
+ * la carta. El documento de identidad se pedía aquí a todo el mundo y era
+ * fricción sin contrapartida —es un dato tributario que solo necesita quien pide
+ * factura—, así que ahora vive detrás de esa pregunta, en `InvoiceFields`.
  *
  * Pinta y devuelve eventos, nada más. Ni valida ni decide cuándo se avanza: eso
  * lo resuelve `useCheckoutFlow`, que es quien sabe qué campos tiene este paso.
@@ -33,7 +34,7 @@ export const AccountStep: React.FC<AccountStepProps> = ({ form, onNext, onSwitch
     formState: { errors, dirtyFields },
   } = form;
 
-  const tone = (field: 'name' | 'email' | 'documentType' | 'documentNumber') =>
+  const tone = (field: 'name' | 'email') =>
     fieldTone(Boolean(errors[field]), Boolean(dirtyFields[field]));
 
   return (
@@ -72,47 +73,6 @@ export const AccountStep: React.FC<AccountStepProps> = ({ form, onNext, onSwitch
         </p>
       </div>
 
-      {/*
-        Tipo y número van en la misma fila: son un solo dato partido en dos, y
-        separarlos en dos bloques haría que el paso pareciera más largo de lo que es.
-        El tipo viene preseleccionado en cédula, así que para casi todo el mundo esto
-        es un campo, no dos.
-      */}
-      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3">
-        <div>
-          <label className={LABEL} htmlFor="buy-document-type">
-            Tipo de documento
-          </label>
-          <DocumentTypeSelect
-            id="buy-document-type"
-            tone={tone('documentType')}
-            field={register('documentType')}
-          />
-        </div>
-        <div>
-          <label className={LABEL} htmlFor="buy-document-number">
-            Número de documento
-          </label>
-          {/*
-            `inputMode` y no `type="number"`: un number corta los ceros a la izquierda,
-            no admite las letras del pasaporte y en escritorio pinta unas flechas que
-            aquí no significan nada. Lo que se quiere es el teclado numérico del móvil.
-          */}
-          <input
-            id="buy-document-number"
-            {...register('documentNumber')}
-            inputMode="numeric"
-            maxLength={20}
-            autoComplete="off"
-            placeholder="1098765432"
-            aria-invalid={Boolean(errors.documentNumber)}
-            aria-describedby={errors.documentNumber ? 'buy-document-number-error' : undefined}
-            className={fieldClass(tone('documentNumber'))}
-          />
-        </div>
-      </div>
-      <FieldError id="buy-document-number-error" message={errors.documentNumber?.message} />
-
       <div>
         <label className={LABEL} htmlFor="buy-email">
           Tu correo
@@ -133,6 +93,9 @@ export const AccountStep: React.FC<AccountStepProps> = ({ form, onNext, onSwitch
           Aquí te llegará el enlace de tu carta cuando esté lista.
         </p>
       </div>
+
+      {/* Lo opcional va al final: primero lo que todo el mundo tiene que responder */}
+      <InvoiceFields form={form} />
 
       <button
         type="submit"

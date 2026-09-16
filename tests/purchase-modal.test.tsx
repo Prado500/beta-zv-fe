@@ -48,7 +48,6 @@ vi.mock('../src/modules/legal/services/legal', () => ({
 
 const NAME = 'Sebastián';
 const EMAIL = 'sebas@ejemplo.com';
-const DOCUMENT = '1098765432';
 /** La versión que sirve el backend y que el alta manda de vuelta como prueba. */
 const TERMS_VERSION = '2026-09-10';
 /** Dentro del rango que acepta el backend (4–10). */
@@ -99,7 +98,7 @@ const waitOutCountdown = () => {
 /** Paso 1 relleno y pulsado: deja la pantalla de confirmación en pantalla. */
 const goToConfirm = async (user: ReturnType<typeof setup>, email = EMAIL) => {
   await user.type(screen.getByLabelText('Tu nombre'), NAME);
-  await user.type(screen.getByLabelText('Número de documento'), DOCUMENT);
+  // Sin documento a propósito: es lo que hace la mayoría, que no pide factura
   await user.type(screen.getByLabelText('Tu correo'), email);
   await user.click(nextButton());
   await screen.findByLabelText('Corrígelo aquí si hace falta');
@@ -140,13 +139,15 @@ describe('PurchaseModal', () => {
 
     // `confirmPassword` nunca sale de esta pantalla: el backend prohíbe campos
     // de más y devolvería un 422 por un dato que solo servía para cazar erratas.
+    /*
+     * Sin factura no viaja documento, y las claves no van siquiera vacías: el
+     * backend declara `extra="forbid"`. Que sí viajen cuando se pide factura lo
+     * fija `optional-document-fields.test.tsx`.
+     */
     expect(registerAccount).toHaveBeenCalledWith({
       name: NAME,
       email: EMAIL,
       password: PASSWORD,
-      // El tipo viaja como la cadena del `<select>`; el servicio la convierte a entero.
-      documentType: '13',
-      documentNumber: DOCUMENT,
       acceptedTermsVersion: TERMS_VERSION,
     });
     // Sin este apunte, a la vuelta de la pasarela no sabríamos qué verificar.
